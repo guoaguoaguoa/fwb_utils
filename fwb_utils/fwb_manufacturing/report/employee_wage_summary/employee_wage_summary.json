@@ -1,0 +1,165 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Datetime",
+   "label": "\u62a5\u5de5\u65e5\u671f",
+   "width": 0
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "\u5458\u5de5ID",
+   "options": "Employee",
+   "width": 0
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "\u5458\u5de5\u59d3\u540d",
+   "width": 0
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "options": " Work Order",
+   "width": 0
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "label": "\u4ea7\u54c1\u540d",
+   "width": 0
+  },
+  {
+   "fieldname": "size_l",
+   "fieldtype": "Data",
+   "label": "\u957f",
+   "width": 0
+  },
+  {
+   "fieldname": "size_w",
+   "fieldtype": "Data",
+   "label": "\u5bbd",
+   "width": 0
+  },
+  {
+   "fieldname": "size_h",
+   "fieldtype": "Data",
+   "label": "\u9ad8",
+   "width": 0
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "\u5de5\u4f5c\u7ad9",
+   "options": "Workstation",
+   "width": 0
+  },
+  {
+   "fieldname": "piece_rate",
+   "fieldtype": "Currency",
+   "label": "\u8ba1\u4ef6\u5355\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "valid_qty",
+   "fieldtype": "Int",
+   "label": "\u6709\u6548\u6570\u91cf",
+   "width": 0
+  },
+  {
+   "fieldname": "duration",
+   "fieldtype": "Duration",
+   "label": "\u6709\u6548\u5de5\u65f6",
+   "width": 0
+  },
+  {
+   "fieldname": "hourly_rate",
+   "fieldtype": "Currency",
+   "label": "\u65f6\u85aa\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "\u672c\u884c\u5de5\u8d44\u91d1\u989d",
+   "width": 0
+  },
+  {
+   "fieldname": "defect_qty",
+   "fieldtype": "Int",
+   "label": "\u6b21\u54c1\u6570\u91cf",
+   "width": 0
+  },
+  {
+   "fieldname": "defect_rate",
+   "fieldtype": "Float",
+   "label": "\u6b21\u54c1\u7387",
+   "width": 0
+  }
+ ],
+ "creation": "2025-12-03 10:20:08.487358",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "\u5f00\u59cb\u4e8e",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "\u7ed3\u675f\u4e8e",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Link",
+   "label": "\u5458\u5de5\u59d3\u540d",
+   "mandatory": 0,
+   "options": "Employee",
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "\u5de5\u4f5c\u7ad9",
+   "mandatory": 0,
+   "options": "Workstation",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letterhead": null,
+ "modified": "2025-12-04 11:32:52.912058",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Employee Wage Summary",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "FWB Work Report",
+ "report_name": "Employee Wage Summary",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Manufacturing Manager"
+  },
+  {
+   "role": "Quality Manager"
+  }
+ ],
+ "timeout": 0
+}

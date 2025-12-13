@@ -1,0 +1,215 @@
+{
+ "actions": [],
+ "allow_events_in_timeline": 1,
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "FWB-RR-.YYYY.MM.DD.-.##",
+ "creation": "2025-11-13 10:43:29.091283",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_rcfe",
+  "amended_from",
+  "product_name",
+  "workstation",
+  "employee",
+  "from_work_report",
+  "rework_action",
+  "defective_qty",
+  "reworked_qty",
+  "photo",
+  "remark",
+  "inspector_name_display",
+  "inspector",
+  "work_order",
+  "created_at",
+  "employee_name_display"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_rcfe",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Rework Record",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Read Only",
+   "label": "\u4ea7\u54c1\u540d"
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "\u8d23\u4efb\u5de5\u4f5c\u7ad9",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "\u8d23\u4efb\u4ebaID",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "from_work_report",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "\u5bf9\u5e94\u7684\u62a5\u5de5\u53f7",
+   "options": "FWB Work Report",
+   "reqd": 1
+  },
+  {
+   "fieldname": "rework_action",
+   "fieldtype": "Select",
+   "label": "\u64cd\u4f5c\u7c7b\u578b",
+   "options": "\u6b21\u54c1\u6263\u9664\n\u826f\u54c1\u56de\u8865"
+  },
+  {
+   "fieldname": "defective_qty",
+   "fieldtype": "Int",
+   "label": "\u6b21\u54c1\u6570\u91cf"
+  },
+  {
+   "fieldname": "reworked_qty",
+   "fieldtype": "Int",
+   "label": "\u8fd4\u5de5\u5b8c\u6210\u6570\u91cf"
+  },
+  {
+   "fieldname": "photo",
+   "fieldtype": "Attach Image",
+   "label": "\u4e0a\u4f20\u7167\u7247"
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "\u6b21\u54c1\u7c7b\u578b"
+  },
+  {
+   "fieldname": "inspector_name_display",
+   "fieldtype": "Read Only",
+   "label": "\u8d28\u68c0\u5458"
+  },
+  {
+   "fieldname": "inspector",
+   "fieldtype": "Read Only",
+   "hidden": 1,
+   "label": "\u8d28\u68c0\u5458ID",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "options": "Work Order"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "\u62a5\u5de5\u65f6\u95f4\u70b9"
+  },
+  {
+   "fieldname": "employee_name_display",
+   "fieldtype": "Read Only",
+   "hidden": 1,
+   "in_list_view": 1,
+   "label": "\u8d23\u4efb\u4eba\u59d3\u540d"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "make_attachments_public": 1,
+ "modified": "2025-12-13 20:00:07.454043",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Rework Record",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "select": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quality Manager",
+   "select": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quality User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "select": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

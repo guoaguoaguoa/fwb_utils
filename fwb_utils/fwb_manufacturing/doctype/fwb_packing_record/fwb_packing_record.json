@@ -1,0 +1,198 @@
+{
+ "actions": [],
+ "allow_events_in_timeline": 1,
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "FWB-PR-.YYYY.MM.DD.-.##",
+ "creation": "2025-11-13 14:34:47.456901",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_6vic",
+  "amended_from",
+  "product_name",
+  "packinger",
+  "qty_per_carton",
+  "carton_count",
+  "carton_l",
+  "carton_w",
+  "carton_h",
+  "gross_weight",
+  "packed_total",
+  "stats_panel_html",
+  "photo",
+  "remark",
+  "work_order",
+  "created_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_6vic",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "FWB Packing Record",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Read Only",
+   "label": "\u4ea7\u54c1\u540d"
+  },
+  {
+   "fieldname": "packinger",
+   "fieldtype": "Read Only",
+   "label": "\u6253\u5305\u5458",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "qty_per_carton",
+   "fieldtype": "Int",
+   "label": "\u7bb1\u5185\u76d2\u6570"
+  },
+  {
+   "fieldname": "carton_count",
+   "fieldtype": "Int",
+   "label": "\u672c\u6b21\u7bb1\u6570"
+  },
+  {
+   "fieldname": "carton_l",
+   "fieldtype": "Int",
+   "label": "\u957f\uff08mm\uff09"
+  },
+  {
+   "fieldname": "carton_w",
+   "fieldtype": "Int",
+   "label": "\u5bbd\uff08mm\uff09"
+  },
+  {
+   "fieldname": "carton_h",
+   "fieldtype": "Int",
+   "label": "\u9ad8\uff08mm\uff09"
+  },
+  {
+   "fieldname": "gross_weight",
+   "fieldtype": "Float",
+   "label": "\u5355\u4ef6\u6bdb\u91cd\uff08kg\uff09",
+   "precision": "2"
+  },
+  {
+   "fieldname": "packed_total",
+   "fieldtype": "Int",
+   "label": "\u5df2\u6253\u5305\u7bb1\u6570"
+  },
+  {
+   "fieldname": "stats_panel_html",
+   "fieldtype": "HTML",
+   "label": "\u7edf\u8ba1\u9762\u677f"
+  },
+  {
+   "fieldname": "photo",
+   "fieldtype": "Attach Image",
+   "label": "\u4e0a\u4f20\u7167\u7247"
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "\u5907\u6ce8\u8bf4\u660e"
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "options": "Work Order"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "\u62a5\u5de5\u65f6\u95f4"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "make_attachments_public": 1,
+ "modified": "2025-12-13 19:27:37.645310",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "FWB Packing Record",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quality Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quality User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

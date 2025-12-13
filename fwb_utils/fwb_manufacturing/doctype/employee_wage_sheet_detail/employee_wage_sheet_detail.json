@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-12-01 10:14:53.326874",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_f3cp",
+  "work_order",
+  "product_name",
+  "size_l",
+  "size_w",
+  "size_h",
+  "workstation",
+  "qty",
+  "rate",
+  "duration_display",
+  "amount",
+  "defect_qty",
+  "defect_rate",
+  "remarks",
+  "duration_seconds"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_f3cp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "\u5de5\u5355\u53f7",
+   "options": "Work Order"
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "\u4ea7\u54c1\u540d"
+  },
+  {
+   "fieldname": "size_l",
+   "fieldtype": "Data",
+   "label": "\u957f"
+  },
+  {
+   "fieldname": "size_w",
+   "fieldtype": "Data",
+   "label": "\u5bbd"
+  },
+  {
+   "fieldname": "size_h",
+   "fieldtype": "Data",
+   "label": "\u9ad8"
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "\u5de5\u4f5c\u7ad9",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "\u6709\u6548\u6570\u91cf"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "\u5355\u4ef7"
+  },
+  {
+   "fieldname": "duration_display",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "\u8ba1\u65f6\u603b\u5de5"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "\u603b\u91d1\u989d"
+  },
+  {
+   "fieldname": "defect_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "\u6b21\u54c1\u6570\u91cf"
+  },
+  {
+   "fieldname": "defect_rate",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "\u6b21\u54c1\u7387"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "\u5907\u6ce8"
+  },
+  {
+   "fieldname": "duration_seconds",
+   "fieldtype": "Duration",
+   "label": "\u7528\u65f6\u8ba1\u7b97"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-12-13 19:27:36.849591",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Employee Wage Sheet Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

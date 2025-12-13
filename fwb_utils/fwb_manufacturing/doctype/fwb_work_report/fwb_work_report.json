@@ -1,0 +1,289 @@
+{
+ "actions": [],
+ "allow_events_in_timeline": 1,
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "FWB-WR-.YYYY.MM.DD.-.##",
+ "creation": "2025-11-12 21:55:22.136999",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_nztx",
+  "amended_from",
+  "work_order",
+  "employee_name_display",
+  "product_name",
+  "workstation",
+  "employee",
+  "wage_type",
+  "rework_type",
+  "qty",
+  "hourly_rate",
+  "duration_display",
+  "custom_piece_rate",
+  "rework_rate",
+  "total_amount",
+  "duration",
+  "start_time",
+  "end_time",
+  "photo",
+  "remark",
+  "created_at",
+  "defect_qty",
+  "recovered_qty",
+  "valid_qty",
+  "report_date",
+  "month_total_amount",
+  "month_defect_rate",
+  "defect_rate_panel_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_nztx",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "FWB Work Report",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "\u7528\u6237",
+   "options": "Employee"
+  },
+  {
+   "columns": 2,
+   "fieldname": "employee_name_display",
+   "fieldtype": "Read Only",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "\u59d3\u540d"
+  },
+  {
+   "columns": 1,
+   "fieldname": "product_name",
+   "fieldtype": "Read Only",
+   "label": "\u4ea7\u54c1\u540d"
+  },
+  {
+   "columns": 1,
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "\u5de5\u4f5c\u7ad9",
+   "options": "Workstation"
+  },
+  {
+   "default": "\u8ba1\u4ef6",
+   "fieldname": "wage_type",
+   "fieldtype": "Select",
+   "label": "\u8ba1\u8d39\u65b9\u5f0f",
+   "options": "\u8ba1\u4ef6\n\u8ba1\u65f6"
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "options": "Work Order"
+  },
+  {
+   "default": "\u5426",
+   "fieldname": "rework_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "\u662f\u5426\u8fd4\u5de5",
+   "options": "\u5426\n\u6709\u507f\u8fd4\u5de5\n\u65e0\u507f\u8fd4\u5de5"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "label": "\u62a5\u5de5\u6570\u91cf"
+  },
+  {
+   "fieldname": "hourly_rate",
+   "fieldtype": "Currency",
+   "label": "\u65f6\u85aa\u4ef7"
+  },
+  {
+   "fieldname": "duration_display",
+   "fieldtype": "Data",
+   "label": "\u5de5\u65f6",
+   "read_only": 1
+  },
+  {
+   "fieldname": "custom_piece_rate",
+   "fieldtype": "Currency",
+   "label": "\u8ba1\u4ef6\u5355\u4ef7",
+   "precision": "3"
+  },
+  {
+   "fieldname": "rework_rate",
+   "fieldtype": "Currency",
+   "label": "\u8fd4\u5de5\u5355\u4ef7"
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "\u603b\u91d1\u989d"
+  },
+  {
+   "fieldname": "duration",
+   "fieldtype": "Duration",
+   "label": "\u5171\u7528\u65f6"
+  },
+  {
+   "fieldname": "start_time",
+   "fieldtype": "Datetime",
+   "label": "\u5f00\u59cb\u65f6\u95f4"
+  },
+  {
+   "fieldname": "end_time",
+   "fieldtype": "Datetime",
+   "label": "\u7ed3\u675f\u65f6\u95f4"
+  },
+  {
+   "fieldname": "photo",
+   "fieldtype": "Attach Image",
+   "label": "\u4e0a\u4f20\u7167\u7247",
+   "reqd": 1
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "\u5907\u6ce8\u8bf4\u660e"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "\u62a5\u5de5\u65f6\u95f4\u70b9"
+  },
+  {
+   "fieldname": "defect_qty",
+   "fieldtype": "Read Only",
+   "label": "\u8d28\u68c0\u6263\u9664\u6570\u91cf"
+  },
+  {
+   "fieldname": "recovered_qty",
+   "fieldtype": "Read Only",
+   "label": "\u8fd4\u5de5\u56de\u8865\u6570\u91cf"
+  },
+  {
+   "fieldname": "valid_qty",
+   "fieldtype": "Read Only",
+   "label": "\u6709\u6548\u7ed3\u7b97\u6570\u91cf"
+  },
+  {
+   "fieldname": "report_date",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "\u62a5\u5de5\u65e5\u671f"
+  },
+  {
+   "fieldname": "month_total_amount",
+   "fieldtype": "Currency",
+   "label": "\u672c\u6708\u7d2f\u8ba1\u91d1\u989d"
+  },
+  {
+   "fieldname": "month_defect_rate",
+   "fieldtype": "Percent",
+   "label": "\u672c\u6708\u6b21\u54c1\u7387 "
+  },
+  {
+   "fieldname": "defect_rate_panel_html",
+   "fieldtype": "HTML",
+   "label": "\u6b21\u54c1\u7387\u6982\u89c8"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "make_attachments_public": 1,
+ "modified": "2025-12-13 19:27:39.321524",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "FWB Work Report",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quality Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quality User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "employee_name_display, workstation, valid_qty, report_date",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

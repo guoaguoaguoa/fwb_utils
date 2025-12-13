@@ -1,0 +1,133 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "\u5458\u5de5ID",
+   "options": "Employee",
+   "width": 0
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "\u5458\u5de5\u59d3\u540d",
+   "width": 0
+  },
+  {
+   "fieldname": "total_valid_qty",
+   "fieldtype": "Int",
+   "label": "\u6709\u6548\u603b\u6570",
+   "width": 0
+  },
+  {
+   "fieldname": "total_defect_qty",
+   "fieldtype": "Int",
+   "label": "\u6b21\u54c1\u603b\u6570",
+   "width": 0
+  },
+  {
+   "fieldname": "defect_rate",
+   "fieldtype": "Float",
+   "label": "\u603b\u6b21\u54c1\u7387",
+   "width": 0
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "options": "Work Order",
+   "width": 0
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "\u5de5\u4f5c\u7ad9",
+   "options": "Workstation",
+   "width": 0
+  },
+  {
+   "fieldname": "total_qty",
+   "fieldtype": "Int",
+   "label": "\u603b\u62a5\u5de5\u6570",
+   "width": 0
+  }
+ ],
+ "creation": "2025-12-03 10:33:57.096360",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "\u5f00\u59cb\u4e8e",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "\u7ed3\u675f\u4e8e",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "\u5de5\u4f5c\u7ad9",
+   "mandatory": 0,
+   "options": "Workstation",
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "mandatory": 0,
+   "options": "Work Order",
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "finished_bom",
+   "fieldtype": "Link",
+   "label": "\u6210\u54c1\u7269\u6599",
+   "mandatory": 0,
+   "options": "BOM",
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "\u5458\u5de5ID",
+   "mandatory": 0,
+   "options": "Employee",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letterhead": null,
+ "modified": "2025-12-07 16:32:49.876543",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Employee Defect Rate Report",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "FWB Work Report",
+ "report_name": "Employee Defect Rate Report",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Manufacturing Manager"
+  },
+  {
+   "role": "Quality Manager"
+  }
+ ],
+ "timeout": 0
+}

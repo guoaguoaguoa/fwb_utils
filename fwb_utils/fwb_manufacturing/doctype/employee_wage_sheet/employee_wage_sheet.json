@@ -1,0 +1,146 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-12-01 09:30:18.060982",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_72dz",
+  "amended_from",
+  "employee",
+  "employee_name",
+  "from_date",
+  "to_date",
+  "total_qty",
+  "total_amount",
+  "status",
+  "remarks",
+  "salary_slip",
+  "details"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_72dz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Employee Wage Sheet",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "\u5458\u5de5ID",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "\u5458\u5de5\u59d3\u540d"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "\u5f00\u59cb\u4e8e"
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "\u7ed3\u675f\u4e8e"
+  },
+  {
+   "fieldname": "total_qty",
+   "fieldtype": "Int",
+   "label": "\u603b\u6709\u6548\u6570\u91cf"
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "\u603b\u91d1\u989d"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "\u72b6\u6001",
+   "options": "\u8349\u7a3f\n\u5df2\u786e\u8ba4\n\u5df2\u751f\u6210\u5de5\u8d44\u5355"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "\u5907\u6ce8"
+  },
+  {
+   "fieldname": "salary_slip",
+   "fieldtype": "Link",
+   "label": "\u5de5\u8d44\u6761",
+   "options": "Salary Slip"
+  },
+  {
+   "fieldname": "details",
+   "fieldtype": "Table",
+   "label": "\u660e\u7ec6",
+   "options": "Employee Wage Sheet Detail"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-12-13 19:27:36.170647",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Employee Wage Sheet",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

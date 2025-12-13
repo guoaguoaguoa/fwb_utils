@@ -1,0 +1,29 @@
+{
+ "content": null,
+ "creation": "2025-12-09 14:31:33.357728",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2025-12-09 14:31:33.357728",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "factory-control-towe",
+ "owner": "Administrator",
+ "page_name": "factory-control-towe",
+ "roles": [
+  {
+   "role": "Manufacturing Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "\u5de5\u5382\u603b\u89c8"
+}

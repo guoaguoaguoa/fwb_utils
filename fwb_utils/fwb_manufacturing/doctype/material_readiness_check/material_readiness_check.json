@@ -1,0 +1,189 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-12-01 12:20:10.100997",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_hqdi",
+  "amended_from",
+  "work_order",
+  "work_order_date",
+  "product_name",
+  "product_qty",
+  "size_l",
+  "size_w",
+  "size_h",
+  "checked_by",
+  "checked_by_name",
+  "status",
+  "photo",
+  "sample",
+  "remarks",
+  "sales_order",
+  "items"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_hqdi",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Material Readiness Check",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "options": "Work Order"
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "\u9500\u552e\u5355",
+   "options": "Sales Order"
+  },
+  {
+   "fieldname": "checked_by",
+   "fieldtype": "Link",
+   "label": "\u8d23\u4efb\u4eba",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "HTML",
+   "label": "\u5907\u6599\u8fdb\u5ea6"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "\u5907\u6ce8"
+  },
+  {
+   "fieldname": "photo",
+   "fieldtype": "Attach Image",
+   "label": "\u7167\u7247"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "\u7269\u6599",
+   "options": "Material Readiness Check Item"
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "label": "\u4ea7\u54c1\u540d"
+  },
+  {
+   "fieldname": "product_qty",
+   "fieldtype": "Int",
+   "label": "\u4ea7\u54c1\u6570\u91cf"
+  },
+  {
+   "fieldname": "size_l",
+   "fieldtype": "Float",
+   "label": "\u957f"
+  },
+  {
+   "fieldname": "size_w",
+   "fieldtype": "Float",
+   "label": "\u5bbd"
+  },
+  {
+   "fieldname": "size_h",
+   "fieldtype": "Float",
+   "label": "\u9ad8"
+  },
+  {
+   "fieldname": "sample",
+   "fieldtype": "Select",
+   "label": "\u6837\u54c1",
+   "options": "\u6709\n\u65e0\n\u6709\u53d8\u52a8"
+  },
+  {
+   "fieldname": "work_order_date",
+   "fieldtype": "Date",
+   "label": "\u5de5\u5355\u65e5\u671f"
+  },
+  {
+   "fieldname": "checked_by_name",
+   "fieldtype": "Data",
+   "label": "\u8d23\u4efb\u4eba\u59d3\u540d"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-12-13 19:27:38.387131",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Material Readiness Check",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

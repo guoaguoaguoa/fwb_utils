@@ -1,0 +1,119 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-12-05 11:21:11.136892",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_main",
+  "work_order",
+  "product_name",
+  "size_l",
+  "size_w",
+  "size_h",
+  "workstation",
+  "qty",
+  "rate",
+  "duration_seconds",
+  "duration_display",
+  "amount",
+  "defect_qty",
+  "defect_rate",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_main",
+   "fieldtype": "Section Break",
+   "label": "Section Break"
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "options": "Work Order"
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "label": "\u4ea7\u54c1\u540d"
+  },
+  {
+   "fieldname": "size_l",
+   "fieldtype": "Data",
+   "label": "\u957f"
+  },
+  {
+   "fieldname": "size_w",
+   "fieldtype": "Data",
+   "label": "\u5bbd"
+  },
+  {
+   "fieldname": "size_h",
+   "fieldtype": "Data",
+   "label": "\u9ad8"
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "\u5de5\u4f5c\u7ad9",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "label": "\u6709\u6548\u6570\u91cf"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "\u5355\u4ef7"
+  },
+  {
+   "fieldname": "duration_seconds",
+   "fieldtype": "Duration",
+   "label": "\u603b\u5de5\u65f6\u79d2\u6570"
+  },
+  {
+   "fieldname": "duration_display",
+   "fieldtype": "Data",
+   "label": "\u8ba1\u65f6\u603b\u5de5"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "\u91d1\u989d"
+  },
+  {
+   "fieldname": "defect_qty",
+   "fieldtype": "Int",
+   "label": "\u6b21\u54c1\u6570\u91cf"
+  },
+  {
+   "fieldname": "defect_rate",
+   "fieldtype": "Percent",
+   "label": "\u6b21\u54c1\u7387"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "\u5907\u6ce8"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-12-13 19:27:37.239123",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Manufacturing Wage Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

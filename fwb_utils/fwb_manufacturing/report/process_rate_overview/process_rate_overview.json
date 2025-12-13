@@ -1,0 +1,124 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "\u4ea7\u54c1\u540d",
+   "width": 0
+  },
+  {
+   "fieldname": "size_l",
+   "fieldtype": "Data",
+   "label": "\u957f",
+   "width": 0
+  },
+  {
+   "fieldname": "size_w",
+   "fieldtype": "Data",
+   "label": "\u5bbd",
+   "width": 0
+  },
+  {
+   "fieldname": "size_h",
+   "fieldtype": "Data",
+   "label": "\u9ad8",
+   "width": 0
+  },
+  {
+   "fieldname": "wood_rate",
+   "fieldtype": "Currency",
+   "label": "\u6728\u5de5\u5355\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "primer_rate",
+   "fieldtype": "Currency",
+   "label": "\u5e95\u6f06\u5355\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "topcoat_rate",
+   "fieldtype": "Currency",
+   "label": "\u9762\u6f06\u5355\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "polish_rate",
+   "fieldtype": "Currency",
+   "label": "\u629b\u5149\u5355\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "assembly_rate",
+   "fieldtype": "Currency",
+   "label": "\u88c5\u914d\u5355\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "upholstery_rate",
+   "fieldtype": "Currency",
+   "label": "\u8f6f\u5305\u5355\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "\u6210\u54c1\u7269\u6599",
+   "options": "Item",
+   "width": 0
+  },
+  {
+   "fieldname": "bom",
+   "fieldtype": "Link",
+   "label": "BOM \u7f16\u53f7",
+   "options": "BOM",
+   "width": 0
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Check",
+   "label": "\u7269\u6599\u7c7b\u522b",
+   "width": 0
+  }
+ ],
+ "creation": "2025-12-03 10:32:37.153205",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "\u7269\u6599\u7c7b\u522b",
+   "mandatory": 0,
+   "options": "Item Group",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letterhead": null,
+ "modified": "2025-12-04 11:44:04.652741",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Process Rate Overview",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "BOM",
+ "report_name": "Process Rate Overview",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "Manufacturing Manager"
+  },
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Quality Manager"
+  }
+ ],
+ "timeout": 0
+}

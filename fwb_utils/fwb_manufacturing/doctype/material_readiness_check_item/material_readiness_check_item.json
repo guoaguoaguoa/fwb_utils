@@ -1,0 +1,95 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-12-02 10:32:05.300839",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_cnax",
+  "item_code",
+  "item_name",
+  "uom",
+  "required_qty",
+  "actual_available_qty",
+  "is_confirmed",
+  "check_date",
+  "check_person",
+  "warehouse",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_cnax",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "\u7269\u6599ID",
+   "options": "Item"
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "\u7269\u6599\u540d"
+  },
+  {
+   "fieldname": "required_qty",
+   "fieldtype": "Float",
+   "label": "\u6240\u9700\u6570"
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Data",
+   "label": "\u5355\u4f4d"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "\u4ece..\u4ed3\u5e93\u51fa",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "is_confirmed",
+   "fieldtype": "Select",
+   "label": "\u7269\u6599\u60c5\u51b5",
+   "options": "\u672a\u5230\n\u90e8\u5206\n\u9f50\u5168\n\u9519\u8bef"
+  },
+  {
+   "fieldname": "actual_available_qty",
+   "fieldtype": "Int",
+   "label": "\u73b0\u573a\u76d8\u70b9\u6570"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "\u5907\u6ce8"
+  },
+  {
+   "fieldname": "check_date",
+   "fieldtype": "Datetime",
+   "label": "\u68c0\u67e5\u65e5\u671f"
+  },
+  {
+   "fieldname": "check_person",
+   "fieldtype": "Data",
+   "label": "\u68c0\u67e5\u5458"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-12-13 19:27:38.929639",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Material Readiness Check Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
