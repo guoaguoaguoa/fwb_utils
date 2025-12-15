@@ -7,21 +7,20 @@ app_license = "MIT"
 
 doc_events = {
     "Work Order": {
-        # 你原来这里的路径保持不动，我只保留结构，具体函数名用你自己现有的
-        "on_submit": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.on_work_order_submit",
-        "on_cancel": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.on_work_order_cancel",
+        "on_submit": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_submit",
+        "on_cancel": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_cancel",
     }
 }
 
 scheduler_events = {
     "cron": {
-        # 周一 10:30
+        # 每天 9:00 触发一次，下面的字符前到后的顺序分别代表：分钟、小时、每月的第几天、月份、星期几
         "30 10 * * 1": [
-            "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.daily_notify_unready_materials"
+            "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.send_material_readiness_daily_reminder"
         ],
-        # 每天 9:30
+        # 每天 9:30 发送站内提醒（Notification Log）
         "30 9 * * *": [
-            "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.daily_notify_unready_materials"
+            "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.send_material_readiness_daily_notification"
         ],
     }
 }
