@@ -74,18 +74,7 @@ fixtures = [
     {
         "doctype": "Custom Field",
         "filters": [
-            ["name", "in", [
-                "BOM-custom_size_l",
-                "BOM-custom_size_w",
-                "BOM-custom_size_h",
-                "Employee-custom_section_break_5pjzz",
-                "Employee-custom_多工种关联",
-                "Salary Slip-custom_section_break_ap1nx",
-                "Salary Slip-custom_manufacturing_wage_details",
-                "Work Order-custom_section_break_jkoar",
-                "Work Order-custom_qr_code",
-                "BOM Operation-custom_piece_rate",
-            ]],
+            ["dt", "in", ["BOM", "Employee", "Work Order", "Salary Slip", "BOM Operation"]],
         ],
     },
 
