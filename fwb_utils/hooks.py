@@ -38,13 +38,13 @@ fixtures = [
   #      ],
   #  },
 
-    # 2) Fwb Manufacturing 模块下的所有报表（Report）
-    {
-        "doctype": "Report",
-        "filters": [
-            ["module", "=", "Fwb Manufacturing"],
-        ],
-    },
+  #  # 2) Fwb Manufacturing 模块下的所有报表（Report）
+  #  {
+  #      "doctype": "Report",
+  #      "filters": [
+  #          ["module", "=", "Fwb Manufacturing"],
+  #      ],
+  #  },
 
     # 3) Fwb Manufacturing 模块下的所有 Server Script
     {
@@ -62,13 +62,13 @@ fixtures = [
         ],
     },
 
-    # 5) Fwb Manufacturing 模块下的页面（Factory Control Tower 等）
-    {
-        "doctype": "Page",
-        "filters": [
-            ["name", "in", ["factory-control-towe"]],
-        ],
-    },
+  #  # 5) Fwb Manufacturing 模块下的页面（Factory Control Tower 等）
+  #  {
+  #      "doctype": "Page",
+  #      "filters": [
+  #          ["name", "in", ["factory-control-towe"]],
+  #      ],
+  #  },
 
     # 6) 自定义字段：BOM / Employee / Work Order / Salary Slip / BOM Operation
     #    这里就把你盘点清单里提到的那几个都一网打尽
