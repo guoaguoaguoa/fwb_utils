@@ -455,3 +455,138 @@ def send_material_readiness_daily_reminder():
         "status": "ok",
         "sent": sent_info,
     }
+
+def send_material_readiness_daily_notification():
+    """Create in-app notifications (Notification Log) for all not-fully-ready materials.
+
+    Rules:
+    - Same pending rows as email reminder:
+        * docstatus < 2 (Draft + Submitted)
+        * child is_confirmed in ("未到", "部分", "错误")
+    - Group by checked_by (Employee)
+    - For each checker, create ONE Notification Log
+    """
+
+    pending_status = ("未到", "部分", "错误")
+
+    # 1) collect pending rows (same query as email)
+    rows = frappe.db.sql(
+        """
+        SELECT
+            m.name               AS mrc_name,
+            m.work_order,
+            m.product_name,
+            m.product_qty,
+            m.checked_by,
+            i.item_code,
+            i.item_name,
+            i.required_qty,
+            i.actual_available_qty,
+            i.uom,
+            i.is_confirmed
+        FROM `tabMaterial Readiness Check` m
+        INNER JOIN `tabMaterial Readiness Check Item` i
+            ON i.parent = m.name
+        WHERE
+            m.docstatus < 2
+            AND COALESCE(i.is_confirmed, '') IN %(status_list)s
+        ORDER BY
+            m.work_order, m.name, i.idx
+        """,
+        {"status_list": pending_status},
+        as_dict=True,
+    )
+
+    if not rows:
+        return {
+            "status": "no_pending_items",
+            "sent": [],
+        }
+
+    # 2) group by checker
+    grouped_by_checker = {}
+    for r in rows:
+        emp = r.checked_by or "__no_checker__"
+        grouped_by_checker.setdefault(emp, []).append(r)
+
+    sent_info = []
+
+    # 3) create Notification Log per checker
+    for emp, items in grouped_by_checker.items():
+        user_id = None
+        display_name = None
+
+        # resolve Employee -> user_id
+        if emp != "__no_checker__":
+            emp_doc = frappe.db.get_value(
+                "Employee",
+                emp,
+                ["employee_name", "user_id"],
+                as_dict=True,
+            )
+            if emp_doc:
+                display_name = emp_doc.employee_name or ""
+                if emp_doc.user_id:
+                    # for_user expects User.name (login id)
+                    user_id = emp_doc.user_id
+
+        # fallback: Administrator
+        if not user_id:
+            admin = frappe.db.get_value(
+                "User",
+                "Administrator",
+                ["name", "full_name"],
+                as_dict=True,
+            )
+            if admin:
+                user_id = admin.name
+                if not display_name:
+                    display_name = admin.full_name or "同事"
+            else:
+                # no valid user, skip this checker
+                continue
+
+        if not display_name:
+            display_name = "同事"
+
+        # summary info
+        work_orders = set()
+        for r in items:
+            if r.work_order:
+                work_orders.add(r.work_order)
+
+        work_order_text = ", ".join(sorted(work_orders)) or "无工单号"
+        total_lines = len(items)
+
+        subject = f"物料齐套提醒：{total_lines} 条物料未齐套"
+        message = (
+            f"{display_name}，当前共有 {total_lines} 条物料尚未齐套，"
+            f"涉及工单：{work_order_text}。"
+        )
+
+        # pick the first MRC as reference
+        first_mrc = items[0].mrc_name if items else None
+
+        nl = frappe.new_doc("Notification Log")
+        nl.subject = subject
+        nl.email_content = message
+        nl.for_user = user_id
+        nl.type = "Alert"
+        if first_mrc:
+            nl.document_type = "Material Readiness Check"
+            nl.document_name = first_mrc
+
+        nl.insert(ignore_permissions=True)
+
+        sent_info.append(
+            {
+                "employee": emp,
+                "user": user_id,
+                "rows": total_lines,
+            }
+        )
+
+    return {
+        "status": "ok",
+        "sent": sent_info,
+    }
