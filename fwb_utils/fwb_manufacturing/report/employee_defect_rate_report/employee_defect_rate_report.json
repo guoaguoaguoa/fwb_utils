@@ -54,7 +54,7 @@
    "width": 0
   }
  ],
- "creation": "2025-12-03 10:33:57.096360",
+ "creation": "2025-12-15 13:12:47.141729",
  "disabled": 0,
  "docstatus": 0,
  "doctype": "Report",
@@ -109,7 +109,7 @@
  "idx": 0,
  "is_standard": "Yes",
  "letterhead": null,
- "modified": "2025-12-07 16:32:49.876543",
+ "modified": "2025-12-15 13:40:11.678269",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Employee Defect Rate Report",
