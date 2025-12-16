@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "RC-.YYYY.MM.DD.-.##",
  "creation": "2025-12-01 12:20:10.100997",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -123,10 +124,11 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-12-13 19:27:38.387131",
+ "modified": "2025-12-16 09:50:46.016826",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Material Readiness Check",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {

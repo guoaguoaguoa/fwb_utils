@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "WS-.YYYY.MM.DD.-.##",
  "creation": "2025-12-01 09:30:18.060982",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -92,10 +93,11 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-12-13 19:27:36.170647",
+ "modified": "2025-12-16 09:48:22.669605",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Employee Wage Sheet",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
