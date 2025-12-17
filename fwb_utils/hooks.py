@@ -52,6 +52,18 @@ fixtures = [
             ["module", "=", "Fwb Manufacturing"],
         ],
     },
+    
+    {"dt": "Document Naming Rule", "filters": [["document_type", "=", "Item"]]},
+
+    {
+        "doctype": "Stock Settings",
+        "filters": [
+            ["name", "=", "Stock Settings"],
+        ],
+    },
+
+
+
 
     # 4) Fwb Manufacturing 模块下的所有 Client Script
     {
@@ -82,7 +94,7 @@ fixtures = [
     {
         "doctype": "Property Setter",
         "filters": [
-            ["doc_type", "in", ["BOM", "Employee", "Work Order", "Salary Slip", "BOM Operation"]],
+            ["doc_type", "in", ["BOM", "Employee", "Work Order", "Salary Slip", "BOM Operation", "Item"]],
         ],
     },
 ]

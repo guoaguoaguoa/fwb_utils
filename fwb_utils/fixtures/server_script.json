@@ -302,5 +302,24 @@
   "reference_doctype": null,
   "script": "# 脚本名称: get_qc_employees\n# 脚本类型: API\n# 作用：根据 工单 + 工作站 ，返回在该工单/工作站下报过工的员工列表\n\nwork_order = frappe.form_dict.get(\"work_order\")\nworkstation = frappe.form_dict.get(\"workstation\")\n\nresponse = {\n    \"employees\": []\n}\n\nif work_order and workstation:\n    rows = frappe.db.sql(\n        \"\"\"\n        SELECT DISTINCT\n            wr.employee AS name,\n            COALESCE(e.employee_name, wr.employee_name_display, wr.employee) AS employee_name\n        FROM `tabFWB Work Report` wr\n        LEFT JOIN `tabEmployee` e\n            ON e.name = wr.employee\n        WHERE\n            wr.work_order = %s\n            AND wr.workstation = %s\n            AND wr.docstatus = 1\n            AND IFNULL(wr.employee, '') != ''\n        \"\"\",\n        (work_order, workstation),\n        as_dict=True\n    )\n    response[\"employees\"] = rows\n\nfrappe.response[\"message\"] = response\n",
   "script_type": "API"
+ },
+ {
+  "allow_guest": 0,
+  "api_method": null,
+  "cron_format": null,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Server Script",
+  "doctype_event": "Before Insert",
+  "enable_rate_limit": 0,
+  "event_frequency": "All",
+  "modified": "2025-12-17 18:09:31.024678",
+  "module": "Fwb Manufacturing",
+  "name": "Item names",
+  "rate_limit_count": 5,
+  "rate_limit_seconds": 86400,
+  "reference_doctype": "Item",
+  "script": "# Script Type: DocType Event\n# Ref DocType: Item\n# Event: Before Insert\n#\n# 作用：\n# - 在新建物料（包括“数据导入”）时，\n#   根据物料群组自动设置 naming_series\n# - 不再依赖 doc.naming_series 是否为空，因为导入时系统已经塞了默认值\n\n# 当前物料群组名称\ngroup = (doc.item_group or \"\").strip()\n\n# 物料群组 -> 命名系列 的映射\nseries_by_group = {\n    # ===== 成品：22 个叶子群组，共用 FIN-.YY.### =====\n    \"交房箱\": \"FIN-.YY.###\",\n    \"干果、巧克力盒\": \"FIN-.YY.###\",\n    \"建盏、茶杯茶具盒\": \"FIN-.YY.###\",\n    \"托盘、底座、台历、香薰盒\": \"FIN-.YY.###\",\n    \"文房四宝、文创盒\": \"FIN-.YY.###\",\n    \"棋类桌游戏盒\": \"FIN-.YY.###\",\n    \"海参盒\": \"FIN-.YY.###\",\n    \"眼镜、香水、手表盒\": \"FIN-.YY.###\",\n    \"牛樟芝、安宫牛黄丸盒\": \"FIN-.YY.###\",\n    \"生活用品盒\": \"FIN-.YY.###\",\n    \"端午中秋等礼品、酒店用品、咖啡类盒\": \"FIN-.YY.###\",\n    \"精油、化妆品盒\": \"FIN-.YY.###\",\n    \"纪念币、微章、会员卡盒\": \"FIN-.YY.###\",\n    \"茶叶盒\": \"FIN-.YY.###\",\n    \"虫草、燕窝盒\": \"FIN-.YY.###\",\n    \"西洋参、山参、鹿茸、林蛙油、孢子粉、蒙山全蝎盒\": \"FIN-.YY.###\",\n    \"酒盒\": \"FIN-.YY.###\",\n    \"金线莲、藏红花、熊胆粉、枸杞、阿胶盒\": \"FIN-.YY.###\",\n    \"铁皮枫斗、石斛盒\": \"FIN-.YY.###\",\n    \"雪茄、大麻、香烟盒\": \"FIN-.YY.###\",\n    \"首饰盒\": \"FIN-.YY.###\",\n    \"麻将、扑克、筹码盒\": \"FIN-.YY.###\",\n\n    # ===== 原材料大类 =====\n    \"软包\": \"INS-.####\",\n    \"五金\": \"HDW-.####\",\n    \"板材\": \"PLB-.####\",\n    \"油漆\": \"PAI-.###\",\n    \"其他\": \"RM-.###\",\n\n    # ===== 其他大类 =====\n    \"外协加工\": \"OUT-.###\",\n    \"生产耗材\": \"SUP-.####\",\n    \"外采成品\": \"FGP-.###\",\n    \"包装材料\": \"PKG-.###\",\n    \"办公用品\": \"OFF-.###\",\n}\n\n# 无论 doc.naming_series 当前是不是 FIN-.YY.###，\n# 只要找到了对应群组，就强制改成对应系列\nseries = series_by_group.get(group)\nif series:\n    doc.naming_series = series",
+  "script_type": "DocType Event"
  }
 ]
