@@ -53,7 +53,7 @@ fixtures = [
         ],
     },
     
-    {"dt": "Document Naming Rule", "filters": [["document_type", "=", "Item"]]},
+    { "doctype": "Document Naming Settings" },
 
     {
         "doctype": "Stock Settings",
