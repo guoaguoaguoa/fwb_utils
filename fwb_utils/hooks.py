@@ -53,7 +53,6 @@ fixtures = [
         ],
     },
     
-    { "doctype": "Document Naming Settings" },
 
     {
         "doctype": "Stock Settings",
@@ -90,7 +89,7 @@ fixtures = [
         ],
     },
 
-    # 7) 这些 DocType 上做的 Property Setter（属性修改）
+    # 7) 这些 DocType 上做的 Property Setter（属性修改）,针对原生表单的配置和修改，把表单名字放到下面，就会自动被识别出被改动的地方
     {
         "doctype": "Property Setter",
         "filters": [
