@@ -313,7 +313,7 @@
   "doctype_event": "Before Insert",
   "enable_rate_limit": 0,
   "event_frequency": "All",
-  "modified": "2025-12-19 14:47:31.753205",
+  "modified": "2025-12-19 15:05:16.075170",
   "module": "Fwb Manufacturing",
   "name": "Item names",
   "rate_limit_count": 5,
