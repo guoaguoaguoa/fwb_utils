@@ -109,7 +109,7 @@
  "idx": 0,
  "is_standard": "Yes",
  "letterhead": null,
- "modified": "2025-12-15 13:40:11.678269",
+ "modified": "2025-12-24 14:55:59.388891",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Employee Defect Rate Report",
@@ -127,6 +127,9 @@
   },
   {
    "role": "Quality Manager"
+  },
+  {
+   "role": "HR Manager"
   }
  ],
  "timeout": 0
