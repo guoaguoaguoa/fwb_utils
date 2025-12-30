@@ -41,16 +41,20 @@
    "options": "Employee"
   },
   {
+   "columns": 1,
    "fieldname": "employee_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "\u5458\u5de5\u59d3\u540d"
   },
   {
+   "columns": 2,
    "fieldname": "from_date",
    "fieldtype": "Date",
    "label": "\u5f00\u59cb\u4e8e"
   },
   {
+   "columns": 2,
    "fieldname": "to_date",
    "fieldtype": "Date",
    "label": "\u7ed3\u675f\u4e8e"
@@ -61,13 +65,17 @@
    "label": "\u603b\u6709\u6548\u6570\u91cf"
   },
   {
+   "columns": 2,
    "fieldname": "total_amount",
    "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "\u603b\u91d1\u989d"
   },
   {
+   "columns": 1,
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "\u72b6\u6001",
    "options": "\u8349\u7a3f\n\u5df2\u786e\u8ba4\n\u5df2\u751f\u6210\u5de5\u8d44\u5355"
   },
@@ -93,7 +101,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-12-16 09:48:22.669605",
+ "modified": "2025-12-30 18:39:00.800809",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Employee Wage Sheet",

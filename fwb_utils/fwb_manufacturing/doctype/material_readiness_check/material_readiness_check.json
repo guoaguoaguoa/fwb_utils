@@ -79,13 +79,17 @@
    "options": "Material Readiness Check Item"
   },
   {
+   "columns": 2,
    "fieldname": "product_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "\u4ea7\u54c1\u540d"
   },
   {
+   "columns": 1,
    "fieldname": "product_qty",
    "fieldtype": "Int",
+   "in_list_view": 1,
    "label": "\u4ea7\u54c1\u6570\u91cf"
   },
   {
@@ -110,13 +114,17 @@
    "options": "\u6709\n\u65e0\n\u6709\u53d8\u52a8"
   },
   {
+   "columns": 2,
    "fieldname": "work_order_date",
    "fieldtype": "Date",
+   "in_list_view": 1,
    "label": "\u5de5\u5355\u65e5\u671f"
   },
   {
+   "columns": 1,
    "fieldname": "checked_by_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "\u8d23\u4efb\u4eba\u59d3\u540d"
   }
  ],
@@ -124,8 +132,8 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-12-22 15:07:33.711997",
- "modified_by": "guoaguoaguoa@sohu.com",
+ "modified": "2025-12-30 18:36:41.421195",
+ "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Material Readiness Check",
  "naming_rule": "By \"Naming Series\" field",
