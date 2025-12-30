@@ -60,7 +60,7 @@
    "options": "Employee"
   },
   {
-   "columns": 2,
+   "columns": 1,
    "fieldname": "employee_name_display",
    "fieldtype": "Read Only",
    "in_list_view": 1,
@@ -68,7 +68,7 @@
    "label": "\u59d3\u540d"
   },
   {
-   "columns": 1,
+   "columns": 2,
    "fieldname": "product_name",
    "fieldtype": "Read Only",
    "in_list_view": 1,
@@ -97,6 +97,7 @@
    "options": "Work Order"
   },
   {
+   "columns": 1,
    "default": "\u5426",
    "fieldname": "rework_type",
    "fieldtype": "Select",
@@ -105,6 +106,7 @@
    "options": "\u5426\n\u6709\u507f\u8fd4\u5de5\n\u65e0\u507f\u8fd4\u5de5"
   },
   {
+   "columns": 1,
    "fieldname": "qty",
    "fieldtype": "Int",
    "in_list_view": 1,
@@ -210,7 +212,7 @@
  "is_submittable": 1,
  "links": [],
  "make_attachments_public": 1,
- "modified": "2025-12-30 11:20:25.965407",
+ "modified": "2025-12-30 12:18:47.244931",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "FWB Work Report",
@@ -278,6 +280,22 @@
    "read": 1,
    "report": 1,
    "role": "Manufacturing Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "select": 1,
    "share": 1,
    "submit": 1,
    "write": 1
