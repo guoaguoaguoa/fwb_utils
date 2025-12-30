@@ -14,6 +14,7 @@
   "workstation",
   "employee",
   "from_work_report",
+  "qty_to_inspect",
   "rework_action",
   "defective_qty",
   "reworked_qty",
@@ -120,6 +121,12 @@
    "hidden": 1,
    "in_list_view": 1,
    "label": "\u8d23\u4efb\u4eba\u59d3\u540d"
+  },
+  {
+   "fieldname": "qty_to_inspect",
+   "fieldtype": "Int",
+   "label": "\u5f85\u8d28\u68c0\u6570\u91cf",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
@@ -127,7 +134,7 @@
  "is_submittable": 1,
  "links": [],
  "make_attachments_public": 1,
- "modified": "2025-12-29 10:38:26.139874",
+ "modified": "2025-12-30 09:34:13.048353",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Rework Record",
