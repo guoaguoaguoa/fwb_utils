@@ -15,6 +15,8 @@
   "employee",
   "from_work_report",
   "qty_to_inspect",
+  "quality_inspected",
+  "total_quality_inspected",
   "rework_action",
   "defective_qty",
   "reworked_qty",
@@ -69,8 +71,10 @@
    "reqd": 1
   },
   {
+   "columns": 1,
    "fieldname": "rework_action",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "\u64cd\u4f5c\u7c7b\u578b",
    "options": "\u6b21\u54c1\u6263\u9664\n\u826f\u54c1\u56de\u8865"
   },
@@ -134,6 +138,19 @@
    "in_list_view": 1,
    "label": "\u5f85\u8d28\u68c0\u6570\u91cf",
    "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "total_quality_inspected",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "\u5df2\u8d28\u68c0\u603b\u6570",
+   "read_only": 1
+  },
+  {
+   "fieldname": "quality_inspected",
+   "fieldtype": "Int",
+   "label": "\u5f53\u524d\u8d28\u68c0\u6570"
   }
  ],
  "grid_page_length": 50,
@@ -141,7 +158,7 @@
  "is_submittable": 1,
  "links": [],
  "make_attachments_public": 1,
- "modified": "2025-12-30 18:34:10.727209",
+ "modified": "2026-01-05 13:55:05.665061",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Rework Record",
