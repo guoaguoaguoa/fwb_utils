@@ -156,7 +156,7 @@ def get_data(filters):
 
     for wr in rows:
         # same logic as client for amount / piece_rate
-        amount, piece_rate = compute_amount_and_piece_rate(wr)
+        amount, piece_rate, hourly_rate = compute_amount_and_piece_rate(wr)
 
         # defect rate = defect_qty / (valid_qty + defect_qty)
         defect_qty = flt(wr.defect_qty or 0)
@@ -181,7 +181,7 @@ def get_data(filters):
             "piece_rate": piece_rate,
             "valid_qty": valid_qty,
             "duration": duration_seconds,
-            "hourly_rate": flt(wr.hourly_rate or 0),
+            "hourly_rate": hourly_rate,
             "amount": amount,
             "defect_qty": defect_qty,
             "defect_rate": defect_rate,
@@ -223,52 +223,34 @@ def get_data(filters):
 
 
 def get_work_reports(filters):
-    """
-    Load FWB Work Report rows with all required joins.
-
-    We join:
-        - Work Order: to fetch BOM no and production item
-        - BOM: to fetch size_l / size_w / size_h (custom fields)
-    """
-
     conditions = []
     params = []
 
-    # Only submitted reports (docstatus = 1)
     conditions.append("wr.docstatus = 1")
 
-    # Filter by employee (Link)
-    employee = filters.get("employee")
-    if employee:
+    if filters.get("employee"):
         conditions.append("wr.employee = %s")
-        params.append(employee)
+        params.append(filters.get("employee"))
 
-    # Filter by workstation
-    workstation = filters.get("workstation")
-    if workstation:
+    if filters.get("workstation"):
         conditions.append("wr.workstation = %s")
-        params.append(workstation)
+        params.append(filters.get("workstation"))
 
-    # Filter by product name (from FWB Work Report)
-    product_name = filters.get("product_name")
-    if product_name:
+    if filters.get("product_name"):
         conditions.append("wr.product_name LIKE %s")
-        params.append(f"%{product_name}%")
+        params.append(f"%{filters.get('product_name')}%")
 
-    # Filter by date range on created_at (posting_date)
-    from_date = filters.get("from_date")
-    if from_date:
+    if filters.get("from_date"):
         conditions.append("DATE(wr.created_at) >= %s")
-        params.append(from_date)
+        params.append(filters.get("from_date"))
 
-    to_date = filters.get("to_date")
-    if to_date:
+    if filters.get("to_date"):
         conditions.append("DATE(wr.created_at) <= %s")
-        params.append(to_date)
+        params.append(filters.get("to_date"))
 
     condition_sql = " AND ".join(conditions) if conditions else "1=1"
 
-    # Note: custom_size_l/w/h are on BOM as DB columns
+    # === 关键优化：使用 LEFT JOIN 一次性取出所有关联单价 ===
     work_reports = frappe.db.sql(
         f"""
         SELECT
@@ -293,10 +275,13 @@ def get_work_reports(filters):
             wo.bom_no,
             b.custom_size_l AS size_l,
             b.custom_size_w AS size_w,
-            b.custom_size_h AS size_h
+            b.custom_size_h AS size_h,
+            bo.custom_piece_rate AS bom_piece_rate,
+            bo.hour_rate AS bom_hour_rate
         FROM `tabFWB Work Report` wr
         LEFT JOIN `tabWork Order` wo ON wo.name = wr.work_order
         LEFT JOIN `tabBOM` b ON b.name = wo.bom_no
+        LEFT JOIN `tabBOM Operation` bo ON (bo.parent = wo.bom_no AND bo.workstation = wr.workstation)
         WHERE {condition_sql}
         ORDER BY wr.created_at ASC
         """,
@@ -309,25 +294,13 @@ def get_work_reports(filters):
 
 def compute_amount_and_piece_rate(wr):
     """
-    Compute amount and piece_rate using the same logic
-    as the client-side JS (calculate_total).
-
-    Logic:
-        valid_qty = qty - defect_qty + recovered_qty
-        if wage_type == "计时":
-            amount = (duration_in_seconds / 3600) * hourly_rate
-            piece_rate = 0
-        else:
-            if rework_type == "有偿返工":
-                amount = qty * rework_rate
-                piece_rate = rework_rate
-            else:
-                amount = valid_qty * custom_piece_rate
-                piece_rate = custom_piece_rate
+    计算逻辑严格对齐 Employee Wage Sheet，但利用 SQL 预取的数据以保证性能。
     """
     qty = flt(wr.qty or 0)
     defect_qty = flt(wr.defect_qty or 0)
     recovered_qty = flt(wr.recovered_qty or 0)
+    
+    # 统一使用 valid_qty 作为计算基数 (与工资表一致)
     valid_qty = flt(
         wr.valid_qty if wr.valid_qty is not None else (qty - defect_qty + recovered_qty)
     )
@@ -337,23 +310,55 @@ def compute_amount_and_piece_rate(wr):
 
     amount = 0.0
     piece_rate = 0.0
+    hourly_rate = 0.0
 
     if wage_type == "计时":
-        # duration is stored as seconds in ERPNext Duration field
+        # === 计时逻辑 ===
+        # 优先级 1: BOM Operation.hour_rate (从 SQL join 获取, 别名 bom_hour_rate)
+        rate = flt(wr.bom_hour_rate or 0)
+        
+        # 优先级 2: 报工单.hourly_rate
+        if rate <= 0:
+            rate = flt(wr.hourly_rate or 0)
+            
         dur_sec = flt(wr.duration or 0)
         hours = dur_sec / 3600.0
-        amount = hours * flt(wr.hourly_rate or 0)
+        amount = hours * rate
+        
+        # 填充返回数据
         piece_rate = 0.0
-    else:
-        # piece-work mode
-        if rework_type == "有偿返工":
-            amount = qty * flt(wr.rework_rate or 0)
-            piece_rate = flt(wr.rework_rate or 0)
-        else:
-            amount = valid_qty * flt(wr.custom_piece_rate or 0)
-            piece_rate = flt(wr.custom_piece_rate or 0)
+        hourly_rate = rate
 
-    return amount, piece_rate
+    else:
+        # === 计件逻辑 ===
+        final_rate = 0.0
+
+        # 优先级 1: 有偿返工
+        if rework_type == "有偿返工":
+            rr = flt(wr.rework_rate or 0)
+            if rr > 0:
+                final_rate = rr
+
+        # 优先级 2: BOM Operation.custom_piece_rate (从 SQL join 获取)
+        if final_rate == 0:
+            br = flt(wr.bom_piece_rate or 0)
+            if br > 0:
+                final_rate = br
+
+        # 优先级 3: 报工单.custom_piece_rate
+        if final_rate == 0:
+            cr = flt(wr.custom_piece_rate or 0)
+            if cr > 0:
+                final_rate = cr
+
+        # 计算金额：始终基于 valid_qty (与工资表逻辑对齐)
+        amount = valid_qty * final_rate
+        
+        # 填充返回数据
+        piece_rate = final_rate
+        hourly_rate = 0.0
+
+    return amount, piece_rate, hourly_rate
 
 
 @frappe.whitelist()
