@@ -135,60 +135,55 @@ def generate_wage_details(wage_sheet_name: str):
 
 def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
     """
-    Collect aggregated data from FWB Work Report.
+    把 FWB Work Report 一行一行搬到工资表明细里（不再做 GROUP BY）。
 
-    - Only docstatus = 1 rows.
-    - Filter by employee and created_at date range.
-    - Group by work_order + workstation + wage_type.
-      => This allows one time-based row and one piece-based row
-         for the same work_order + workstation.
-    - Summarize valid_qty, defect_qty, duration (for time-based).
-    - Enrich each group with:
-        * work_order info (BOM, Item)
-        * BOM custom size fields: custom_size_l / custom_size_w / custom_size_h
-        * rate (hour_rate or custom_piece_rate) with fallback from Work Report itself.
+    规则：
+    - 只取 docstatus = 1 的报工
+    - 过滤：employee + created_at 日期区间
+    - 每一行 FWB Work Report -> 工资表里的一行明细
+    - 字段：
+        * qty / defect_qty / valid_qty 直接用报工上的值
+        * defect_rate = defect_qty / (valid_qty + defect_qty)
+        * duration_seconds = 报工上的 duration（秒）
+        * 尺寸来自 BOM.custom_size_l/w/h
+        * 单价 rate 规则：
+            - 如果 wage_type == '计时'：
+                1) 优先 BOM Operation.hour_rate
+                2) 否则退回这条报工的 hourly_rate
+            - 否则（计件）：
+                1) 如果 rework_type == '有偿返工' 且 rework_rate > 0
+                   => rate = rework_rate
+                2) 否则优先 BOM Operation.custom_piece_rate > 0
+                3) 再否则退回这条报工的 custom_piece_rate
     """
     sql = """
         SELECT
+            w.name                      AS work_report,
             w.work_order,
             w.workstation,
             w.wage_type,
-            SUM(IFNULL(w.valid_qty, 0))       AS total_valid_qty,
-            SUM(IFNULL(w.defect_qty, 0))      AS total_defect_qty,
-            SUM(
-                CASE
-                    WHEN w.wage_type = '计时' THEN IFNULL(w.duration, 0)
-                    ELSE 0
-                END
-            )                                 AS total_duration_seconds,
-            MAX(w.product_name)               AS product_name,
-
-            -- 新增：这个组合里是否存在“有偿返工”的任何一行
-            MAX(
-                CASE
-                    WHEN w.rework_type = '有偿返工' THEN 1
-                    ELSE 0
-                END
-            )                                 AS has_rework,
-
-            -- 新增：这个组合里“有偿返工”行的 rework_rate 平均值
-            AVG(
-                CASE
-                    WHEN w.rework_type = '有偿返工' THEN IFNULL(w.rework_rate, 0)
-                    ELSE NULL
-                END
-            )                                 AS rework_rate
-
+            w.rework_type,
+            w.qty,
+            w.valid_qty,
+            w.defect_qty,
+            w.rework_rate,
+            w.custom_piece_rate,
+            w.hourly_rate,
+            w.duration                  AS duration_seconds,
+            w.product_name,
+            wo.bom_no,
+            b.custom_size_l             AS size_l,
+            b.custom_size_w             AS size_w,
+            b.custom_size_h             AS size_h
         FROM `tabFWB Work Report` w
+        LEFT JOIN `tabWork Order` wo ON wo.name = w.work_order
+        LEFT JOIN `tabBOM` b ON b.name = wo.bom_no
         WHERE
             w.docstatus = 1
             AND w.employee = %(employee)s
             AND DATE(w.created_at) >= %(from_date)s
             AND DATE(w.created_at) <= %(to_date)s
-        GROUP BY w.work_order, w.workstation, w.wage_type
-        HAVING
-            total_valid_qty > 0
-            OR total_duration_seconds > 0
+        ORDER BY w.created_at ASC
     """
 
     params = {
@@ -197,86 +192,82 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
         "to_date": to_date,
     }
 
-    aggregated = frappe.db.sql(sql, params, as_dict=True)
-
-    if not aggregated:
+    rows = frappe.db.sql(sql, params, as_dict=True)
+    if not rows:
         return []
 
     result = []
 
-    for row in aggregated:
+    for row in rows:
         work_order = row.work_order
         workstation = row.workstation
+        bom_no = row.bom_no
 
-        size_l = ""
-        size_w = ""
-        size_h = ""
+        # 产品名 & 尺寸
         product_name = row.product_name or ""
-        rate = 0.0
+        size_l = row.size_l or ""
+        size_w = row.size_w or ""
+        size_h = row.size_h or ""
 
-        # Get Work Order -> BOM / Item info
-        wo = frappe.db.get_value(
-            "Work Order",
-            work_order,
-            ["bom_no", "production_item", "item_name"],
-            as_dict=True,
-        )
+        # 数量 / 次品 / 有效数
+        total_valid_qty = flt(row.valid_qty or 0)
+        total_defect_qty = flt(row.defect_qty or 0)
 
-        bom_no = None
-        if wo:
-            bom_no = wo.bom_no
-            if not product_name:
-                product_name = wo.item_name or ""
-
-            # Get custom size from BOM custom fields
-            if bom_no:
-                bom = frappe.db.get_value(
-                    "BOM",
-                    bom_no,
-                    ["custom_size_l", "custom_size_w", "custom_size_h"],
-                    as_dict=True,
-                )
-                if bom:
-                    size_l = bom.custom_size_l or ""
-                    size_w = bom.custom_size_w or ""
-                    size_h = bom.custom_size_h or ""
-
-        total_duration = cint(row.total_duration_seconds or 0)
-        total_valid_qty = flt(row.total_valid_qty or 0)
-        total_defect_qty = flt(row.total_defect_qty or 0)
-
-        # Compute defect rate
+        # 次品率
         denom = total_valid_qty + total_defect_qty
         if denom > 0:
             defect_rate = (total_defect_qty / denom) * 100.0
         else:
             defect_rate = 0.0
 
-        # Decide rate
-        if total_duration > 0:
-            # 计时模式：走原来的 _get_time_rate
+        # 工时（秒）
+        total_duration = cint(row.duration_seconds or 0)
+
+        # wage / rework 类型
+        wage_type = (row.wage_type or "计件").strip()
+        rework_type = (row.rework_type or "").strip()
+
+        # ===== 决定单价 rate =====
+        rate = 0.0
+
+        if wage_type == "计时":
+            # 计时：优先 BOM Operation.hour_rate，再退回这条报工的 hourly_rate
             rate = _get_time_rate(
                 employee=employee,
                 work_order=work_order,
                 workstation=workstation,
                 bom_no=bom_no,
             )
-        else:
-            # 计件模式：优先使用“有偿返工”的 rework_rate，其次再走 _get_piece_rate（BOM 等）
-            has_rework = cint(row.has_rework or 0)
-            row_rework_rate = flt(row.rework_rate or 0)
 
-            if has_rework and row_rework_rate > 0:
-                # 这个组合里“有偿返工”的 rework_rate 平均值 > 0，直接当作这一行的单价
-                rate = row_rework_rate
+            if not rate:
+                rate = flt(row.hourly_rate or 0)
+
+        else:
+            # 计件
+            rework_rate = flt(row.rework_rate or 0)
+            custom_piece_rate = flt(row.custom_piece_rate or 0)
+
+            # 1) 有偿返工优先：直接用这一条报工的 rework_rate
+            if rework_type == "有偿返工" and rework_rate > 0:
+                rate = rework_rate
             else:
-                # 否则保持原来的逻辑（BOM.custom_piece_rate -> Work Report.custom_piece_rate）
-                rate = _get_piece_rate(
-                    employee=employee,
-                    work_order=work_order,
-                    workstation=workstation,
-                    bom_no=bom_no,
-                )
+                # 2) 否则优先 BOM Operation.custom_piece_rate
+                bom_rate = 0.0
+                if bom_no:
+                    op = frappe.db.get_value(
+                        "BOM Operation",
+                        {"parent": bom_no, "workstation": workstation},
+                        ["custom_piece_rate"],
+                        as_dict=True,
+                    )
+                    if op:
+                        bom_rate = flt(op.custom_piece_rate or 0)
+
+                if bom_rate > 0:
+                    rate = bom_rate
+                else:
+                    # 3) 再退回这条报工自己的 custom_piece_rate
+                    rate = custom_piece_rate
 
         result.append(
             frappe._dict(
