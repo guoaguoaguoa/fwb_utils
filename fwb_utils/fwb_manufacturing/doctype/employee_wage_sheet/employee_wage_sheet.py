@@ -323,18 +323,41 @@ def _get_time_rate(employee: str, work_order: str, workstation: str, bom_no):
     # 3) default
     return 0.0
 
-
 def _get_piece_rate(employee: str, work_order: str, workstation: str, bom_no):
     """
     Decide piece rate for quantity-based rows.
 
     Priority:
+    0) 有偿返工：同一员工 + 工单 + 工作站 下，FWB Work Report.rework_type = '有偿返工'
+       的 rework_rate 平均值（仅非计时单）
     1) BOM Operation.custom_piece_rate for given BOM + workstation
     2) Average custom_piece_rate from FWB Work Report for this employee + work_order + workstation
        (exclude wage_type = '计时')
     3) 0.0
     """
-    # 1) try BOM Operation.custom_piece_rate
+
+    # 0) 优先：如果是有偿返工，且 FWB Work Report 里有 rework_rate，就用它
+    val = frappe.db.sql(
+        """
+        SELECT AVG(IFNULL(rework_rate, 0))
+        FROM `tabFWB Work Report`
+        WHERE
+            docstatus = 1
+            AND employee = %s
+            AND work_order = %s
+            AND workstation = %s
+            AND (wage_type IS NULL OR wage_type != '计时')
+            AND rework_type = '有偿返工'
+        """,
+        (employee, work_order, workstation),
+    )
+
+    if val and val[0] and val[0][0] is not None:
+        rework_avg = flt(val[0][0] or 0)
+        if rework_avg > 0:
+            return rework_avg
+
+    # 1) 仍然先尝试 BOM Operation.custom_piece_rate
     if bom_no:
         op = frappe.db.get_value(
             "BOM Operation",
@@ -347,7 +370,7 @@ def _get_piece_rate(employee: str, work_order: str, workstation: str, bom_no):
             if pr > 0:
                 return pr
 
-    # 2) fallback: average custom_piece_rate from FWB Work Report (non-time-based)
+    # 2) 回退到 FWB Work Report 里的 custom_piece_rate 平均值（非计时）
     val = frappe.db.sql(
         """
         SELECT AVG(IFNULL(custom_piece_rate, 0))
@@ -367,8 +390,9 @@ def _get_piece_rate(employee: str, work_order: str, workstation: str, bom_no):
         if avg_rate > 0:
             return avg_rate
 
-    # 3) default
+    # 3) 默认 0
     return 0.0
+
 
 
 def _format_duration_display(seconds):
