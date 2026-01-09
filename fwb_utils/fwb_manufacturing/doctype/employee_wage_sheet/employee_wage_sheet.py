@@ -1,6 +1,3 @@
-# Copyright (c) 2025, WenZhou Furui Handicraft Co.,Ltd. and contributors
-# For license information, please see license.txt
-
 # v2025.12.06.06 - Employee Wage Sheet backend
 # - Aggregate FWB Work Report into Employee Wage Sheet Detail
 # - Split time-based / piece-based rows
@@ -164,7 +161,24 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
                     ELSE 0
                 END
             )                                 AS total_duration_seconds,
-            MAX(w.product_name)               AS product_name
+            MAX(w.product_name)               AS product_name,
+
+            -- 新增：这个组合里是否存在“有偿返工”的任何一行
+            MAX(
+                CASE
+                    WHEN w.rework_type = '有偿返工' THEN 1
+                    ELSE 0
+                END
+            )                                 AS has_rework,
+
+            -- 新增：这个组合里“有偿返工”行的 rework_rate 平均值
+            AVG(
+                CASE
+                    WHEN w.rework_type = '有偿返工' THEN IFNULL(w.rework_rate, 0)
+                    ELSE NULL
+                END
+            )                                 AS rework_rate
+
         FROM `tabFWB Work Report` w
         WHERE
             w.docstatus = 1
@@ -240,7 +254,7 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
 
         # Decide rate
         if total_duration > 0:
-            # time-based mode
+            # 计时模式：走原来的 _get_time_rate
             rate = _get_time_rate(
                 employee=employee,
                 work_order=work_order,
@@ -248,13 +262,21 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
                 bom_no=bom_no,
             )
         else:
-            # piece-based mode
-            rate = _get_piece_rate(
-                employee=employee,
-                work_order=work_order,
-                workstation=workstation,
-                bom_no=bom_no,
-            )
+            # 计件模式：优先使用“有偿返工”的 rework_rate，其次再走 _get_piece_rate（BOM 等）
+            has_rework = cint(row.has_rework or 0)
+            row_rework_rate = flt(row.rework_rate or 0)
+
+            if has_rework and row_rework_rate > 0:
+                # 这个组合里“有偿返工”的 rework_rate 平均值 > 0，直接当作这一行的单价
+                rate = row_rework_rate
+            else:
+                # 否则保持原来的逻辑（BOM.custom_piece_rate -> Work Report.custom_piece_rate）
+                rate = _get_piece_rate(
+                    employee=employee,
+                    work_order=work_order,
+                    workstation=workstation,
+                    bom_no=bom_no,
+                )
 
         result.append(
             frappe._dict(
@@ -322,6 +344,7 @@ def _get_time_rate(employee: str, work_order: str, workstation: str, bom_no):
 
     # 3) default
     return 0.0
+
 
 def _get_piece_rate(employee: str, work_order: str, workstation: str, bom_no):
     """
@@ -392,7 +415,6 @@ def _get_piece_rate(employee: str, work_order: str, workstation: str, bom_no):
 
     # 3) 默认 0
     return 0.0
-
 
 
 def _format_duration_display(seconds):
