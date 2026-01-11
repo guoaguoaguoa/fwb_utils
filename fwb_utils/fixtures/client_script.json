@@ -15,7 +15,7 @@
   "doctype": "Client Script",
   "dt": "Work Order",
   "enabled": 1,
-  "modified": "2025-12-31 11:56:23.648851",
+  "modified": "2026-01-11 09:09:24.647708",
   "module": "Fwb Manufacturing",
   "name": "Work Order",
   "script": "frappe.require(\"https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js\");\n\nfrappe.ui.form.on(\"Work Order\", {\n    refresh(frm) {\n\n        // 工单还没保存不能生成二维码\n        if (!frm.doc.name) {\n            frm.set_df_property(\"custom_qr_code\", \"options\",\n                \"<p style='color:red;'>请先保存工单后再生成二维码</p>\");\n            return;\n        }\n\n        // 生成 URL（统一入口，所有工人扫描进入自己的表单）\n        const url = `https://erp.freewoodenbox.com/app/fwb-work-report/new?work_order=${frm.doc.name}`;\n\n        // 给 HTML 字段塞入 DIV\n        frm.set_df_property(\"custom_qr_code\", \"options\",\n            `<div id=\"wo_qrcode\" style=\"margin-top:10px;\"></div>`);\n\n        // 延迟避免刷新覆盖\n        setTimeout(() => {\n            document.getElementById(\"wo_qrcode\").innerHTML = \"\"; // 先清空，避免重复生成\n            new QRCode(document.getElementById(\"wo_qrcode\"), {\n                text: url,\n                width: 180,\n                height: 180,\n                correctLevel: QRCode.CorrectLevel.H\n            });\n        }, 300);\n    }\n});",

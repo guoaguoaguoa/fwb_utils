@@ -1,0 +1,134 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [
+  {
+   "fieldname": "report_date",
+   "fieldtype": "Date",
+   "label": "\u62a5\u5de5\u65e5\u671f",
+   "width": 0
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "label": "\u4ea7\u54c1\u540d",
+   "width": 0
+  },
+  {
+   "fieldname": "wage_type",
+   "fieldtype": "Data",
+   "label": "\u8ba1\u8d39\u65b9\u5f0f",
+   "width": 0
+  },
+  {
+   "fieldname": "rework_type",
+   "fieldtype": "Data",
+   "label": "\u662f\u5426\u8fd4\u5de5",
+   "width": 0
+  },
+  {
+   "fieldname": "produce_qty",
+   "fieldtype": "Int",
+   "label": "\u62a5\u5de5\u6570\u91cf",
+   "width": 0
+  },
+  {
+   "fieldname": "piece_rate",
+   "fieldtype": "Float",
+   "label": "\u5355\u4ef7",
+   "width": 0
+  },
+  {
+   "fieldname": "duration_display",
+   "fieldtype": "Data",
+   "label": "\u5de5\u65f6",
+   "width": 0
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Float",
+   "label": "\u91d1\u989d",
+   "width": 0
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "options": " Work Order",
+   "width": 0
+  },
+  {
+   "fieldname": "report_num",
+   "fieldtype": "Link",
+   "label": "\u62a5\u5de5\u5355\u53f7",
+   "options": "FWB Work Report",
+   "width": 0
+  }
+ ],
+ "creation": "2026-01-10 22:15:52.617033",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "\u5f00\u59cb\u4e8e",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "\u7ed3\u675f\u4e8e",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Link",
+   "label": "\u4ea7\u54c1\u540d",
+   "mandatory": 0,
+   "options": "",
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "\u5de5\u5355\u53f7",
+   "mandatory": 0,
+   "options": " Work Order",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letterhead": null,
+ "modified": "2026-01-10 22:56:31.495228",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Work Report Log",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "FWB Work Report",
+ "report_name": "Work Report Log",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Manufacturing Manager"
+  },
+  {
+   "role": "Quality Manager"
+  },
+  {
+   "role": "HR Manager"
+  },
+  {
+   "role": "Manufacturing User"
+  }
+ ],
+ "timeout": 0
+}
