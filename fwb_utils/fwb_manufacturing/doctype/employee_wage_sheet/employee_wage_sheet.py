@@ -98,6 +98,7 @@ def generate_wage_details(wage_sheet_name: str):
 
         child.duration_seconds = r.total_duration_seconds
         child.duration_display = _format_duration_display(r.total_duration_seconds)
+        child.is_penalty = r.get("is_penalty", 0)
 
         # initial rate decided on server side
         child.rate = r.rate or 0.0
@@ -115,7 +116,10 @@ def generate_wage_details(wage_sheet_name: str):
 
     for d in ws.details:
         total_qty += flt(d.qty or 0)
-        total_amount += flt(d.amount or 0)
+        if d.is_penalty:
+            total_amount -= flt(d.amount or 0)
+        else:
+            total_amount += flt(d.amount or 0)
 
     ws.total_qty = total_qty
     ws.total_amount = total_amount
@@ -268,7 +272,74 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
             )
         )
 
+    # Collect Penalty Records (Rework Record with is_penalty=1)
+    penalty_rows = _collect_penalty_rows(employee, from_date, to_date)
+    # frappe.msgprint(f"Debug: Found {len(penalty_rows)} penalty rows between {from_date} and {to_date}")
+    result.extend(penalty_rows)
+
     return result
+
+
+def _collect_penalty_rows(employee, from_date, to_date):
+    """
+    Fetch Rework Records marked as 'is_penalty' = 1.
+    These will be treated as deduction rows.
+    """
+    sql = """
+        SELECT
+            r.name,
+            r.work_order,
+            r.workstation,
+            COALESCE(r.product_name, w.product_name) as product_name,
+            IFNULL(r.defective_qty, 0) as qty,
+            r.created_at
+        FROM `tabRework Record` r
+        INNER JOIN `tabFWB Work Report` w ON r.from_work_report = w.name
+        WHERE
+            r.docstatus = 1
+            AND r.is_penalty = 1
+            AND r.employee = %(employee)s
+            AND DATE(w.created_at) >= %(from_date)s
+            AND DATE(w.created_at) <= %(to_date)s
+    """
+    params = {
+        "employee": employee,
+        "from_date": from_date,
+        "to_date": to_date,
+    }
+    
+    records = frappe.db.sql(sql, params, as_dict=True)
+    if not records:
+        return []
+        
+    res = []
+    for row in records:
+        # Fetch dimensions from Work Order -> BOM if possible (optional, for display)
+        size_l, size_w, size_h = "", "", ""
+        if row.work_order:
+            bom_no = frappe.db.get_value("Work Order", row.work_order, "bom_no")
+            if bom_no:
+                 bom = frappe.db.get_value("BOM", bom_no, ["custom_size_l", "custom_size_w", "custom_size_h"], as_dict=True)
+                 if bom:
+                     size_l = bom.custom_size_l
+                     size_w = bom.custom_size_w
+                     size_h = bom.custom_size_h
+                     
+        res.append(frappe._dict({
+            "work_order": row.work_order,
+            "workstation": row.workstation,
+            "product_name": row.product_name,
+            "size_l": size_l,
+            "size_w": size_w,
+            "size_h": size_h,
+            "total_valid_qty": row.qty, # Mapped to qty column
+            "total_defect_qty": 0,
+            "defect_rate": 0,
+            "total_duration_seconds": 0,
+            "rate": 0.0, # Default rate is 0, to be filled by user
+            "is_penalty": 1
+        }))
+    return res
 
 
 def _get_time_rate(bom_no, workstation, row_hourly_rate):
