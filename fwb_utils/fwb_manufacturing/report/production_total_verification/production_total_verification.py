@@ -123,6 +123,7 @@ def get_data(filters):
         
         WHERE
             wr.docstatus < 2  /* 0=草稿, 1=已提交 (排除2=已取消) */
+            AND (wr.rework_type = '否' OR wr.rework_type IS NULL OR wr.rework_type = '')
             {conditions}
             
         GROUP BY
