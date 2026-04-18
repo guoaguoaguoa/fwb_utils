@@ -291,7 +291,7 @@ def _collect_penalty_rows(employee, from_date, to_date):
             r.work_order,
             r.workstation,
             COALESCE(r.product_name, w.product_name) as product_name,
-            IFNULL(r.defective_qty, 0) as qty,
+            IFNULL(r.penalty_qty, 0) as qty,
             r.created_at
         FROM `tabRework Record` r
         INNER JOIN `tabFWB Work Report` w ON r.from_work_report = w.name

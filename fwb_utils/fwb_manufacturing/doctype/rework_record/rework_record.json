@@ -17,10 +17,12 @@
   "qty_to_inspect",
   "quality_inspected",
   "total_quality_inspected",
-  "is_penalty",
   "rework_action",
   "defective_qty",
   "reworked_qty",
+  "is_penalty",
+  "penalty_qty",
+  "penalty_prompt",
   "photo",
   "remark",
   "inspector_name_display",
@@ -107,7 +109,7 @@
   {
    "fieldname": "remark",
    "fieldtype": "Small Text",
-   "label": "\u6b21\u54c1\u7c7b\u578b"
+   "label": "\u6b21\u54c1\u60c5\u51b5\u63cf\u8ff0\u5728\u8fd9\u91cc"
   },
   {
    "fieldname": "inspector_name_display",
@@ -160,6 +162,16 @@
    "fieldname": "quality_inspected",
    "fieldtype": "Int",
    "label": "\u5f53\u524d\u8d28\u68c0\u6570"
+  },
+  {
+   "fieldname": "penalty_qty",
+   "fieldtype": "Int",
+   "label": "\u6263\u7f5a\u6570\u91cf"
+  },
+  {
+   "fieldname": "penalty_prompt",
+   "fieldtype": "HTML",
+   "label": "\u6263\u7f5a\u6570\u91cf\u7684\u586b\u5199\u63d0\u793a"
   }
  ],
  "grid_page_length": 50,
@@ -167,7 +179,7 @@
  "is_submittable": 1,
  "links": [],
  "make_attachments_public": 1,
- "modified": "2026-01-23 22:37:54.158516",
+ "modified": "2026-04-18 16:40:10.187508",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Rework Record",

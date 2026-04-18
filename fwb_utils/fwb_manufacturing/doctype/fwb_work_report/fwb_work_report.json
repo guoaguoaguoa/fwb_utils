@@ -157,8 +157,7 @@
   {
    "fieldname": "photo",
    "fieldtype": "Attach Image",
-   "label": "\u4e0a\u4f20\u7167\u7247",
-   "reqd": 1
+   "label": "\u4e0a\u4f20\u7167\u7247"
   },
   {
    "fieldname": "remark",
@@ -212,7 +211,7 @@
  "is_submittable": 1,
  "links": [],
  "make_attachments_public": 1,
- "modified": "2025-12-30 12:18:47.244931",
+ "modified": "2026-04-18 15:26:51.291510",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "FWB Work Report",
