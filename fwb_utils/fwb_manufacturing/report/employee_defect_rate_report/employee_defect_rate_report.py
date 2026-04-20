@@ -4,7 +4,9 @@
 # v2025.12.09.01 - Employee Defect Rate Report backend
 # - Denominator: sum of FWB Work Report.qty (total_qty)
 # - Also show sum of valid_qty (total_valid_qty) for reference
-# - Numerator: sum of Rework Record.defective_qty
+# - Numerator: sum of Rework Record.defective_qty only
+#   penalty_qty is already included inside defective_qty and must not be added again
+#   good-piece recovery does not subtract from this numerator
 # - One row per employee + work_order + workstation
 # - Filter: finished_bom (BOM) via Work Order.bom_no
 # - Helper: bom_for_finished_items -> only BOMs whose Item Group is under root "成品"
@@ -121,6 +123,8 @@ def get_data(filters):
     if where_clauses:
         where_sql = "WHERE " + " AND ".join(where_clauses)
 
+    # total_defect_qty deliberately aggregates Rework Record.defective_qty only.
+    # Do not replace it with penalty_qty, and do not subtract reworked_qty here.
     sql = f"""
         SELECT
             w.employee                                AS employee,
