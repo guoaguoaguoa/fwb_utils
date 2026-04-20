@@ -97,7 +97,6 @@
    "options": "Work Order"
   },
   {
-   "columns": 1,
    "default": "\u5426",
    "fieldname": "rework_type",
    "fieldtype": "Select",
@@ -170,18 +169,24 @@
    "label": "\u62a5\u5de5\u65f6\u95f4\u70b9"
   },
   {
+   "columns": 1,
    "fieldname": "defect_qty",
    "fieldtype": "Read Only",
+   "in_list_view": 1,
    "label": "\u8d28\u68c0\u6263\u9664\u6570\u91cf"
   },
   {
+   "columns": 1,
    "fieldname": "recovered_qty",
    "fieldtype": "Read Only",
+   "in_list_view": 1,
    "label": "\u8fd4\u5de5\u56de\u8865\u6570\u91cf"
   },
   {
+   "columns": 1,
    "fieldname": "valid_qty",
    "fieldtype": "Read Only",
+   "in_list_view": 1,
    "label": "\u6709\u6548\u7ed3\u7b97\u6570\u91cf"
   },
   {
@@ -211,7 +216,7 @@
  "is_submittable": 1,
  "links": [],
  "make_attachments_public": 1,
- "modified": "2026-04-18 15:26:51.291510",
+ "modified": "2026-04-20 23:34:02.472372",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "FWB Work Report",
