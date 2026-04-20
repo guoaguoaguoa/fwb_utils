@@ -99,10 +99,9 @@
   },
   {
    "fieldname": "product_name",
-   "fieldtype": "Link",
-   "label": "\u4ea7\u54c1\u540d",
+   "fieldtype": "Data",
+   "label": "\u4ea7\u54c1\u540d (\u652f\u6301\u6a21\u7cca)",
    "mandatory": 0,
-   "options": "",
    "wildcard_filter": 0
   },
   {

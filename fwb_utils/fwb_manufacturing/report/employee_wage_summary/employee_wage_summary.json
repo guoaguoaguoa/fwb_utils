@@ -122,9 +122,9 @@
    "wildcard_filter": 0
   },
   {
-   "fieldname": "employee_name",
+   "fieldname": "employee",
    "fieldtype": "Link",
-   "label": "\u5458\u5de5\u59d3\u540d",
+   "label": "\u5458\u5de5",
    "mandatory": 0,
    "options": "Employee",
    "wildcard_filter": 0

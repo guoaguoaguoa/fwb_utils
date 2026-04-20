@@ -8,6 +8,7 @@
 #   penalty_qty is already included inside defective_qty and must not be added again
 #   good-piece recovery does not subtract from this numerator
 # - One row per employee + work_order + workstation
+# - Product name column comes from Work Order.item_name / FWB Work Report.product_name
 # - Filter: finished_bom (BOM) via Work Order.bom_no
 # - Helper: bom_for_finished_items -> only BOMs whose Item Group is under root "成品"
 # - New: append a total row (sum of qtys + weighted defect_rate) at bottom
@@ -47,6 +48,12 @@ def get_columns():
             "fieldname": "employee_name",
             "fieldtype": "Data",
             "width": 160,
+        },
+        {
+            "label": "产品名",
+            "fieldname": "product_name",
+            "fieldtype": "Data",
+            "width": 180,
         },
         {
             "label": "有效总数",
@@ -129,15 +136,24 @@ def get_data(filters):
         SELECT
             w.employee                                AS employee,
             MAX(w.employee_name_display)              AS employee_name,
+            MAX(COALESCE(wo.item_name, w.product_name, wo.production_item, ''))
+                                                    AS product_name,
             w.work_order                              AS work_order,
             w.workstation                             AS workstation,
             SUM(IFNULL(w.valid_qty, 0))               AS total_valid_qty,
             SUM(IFNULL(w.qty, 0))                     AS total_qty,
-            IFNULL(SUM(IFNULL(r.defective_qty, 0)),0) AS total_defect_qty
+            IFNULL(SUM(IFNULL(r_agg.total_defective_qty, 0)), 0)
+                                                    AS total_defect_qty
         FROM `tabFWB Work Report` w
-        LEFT JOIN `tabRework Record` r
-            ON r.from_work_report = w.name
-           AND r.docstatus = 1
+        LEFT JOIN (
+            SELECT
+                r.from_work_report,
+                SUM(IFNULL(r.defective_qty, 0)) AS total_defective_qty
+            FROM `tabRework Record` r
+            WHERE r.docstatus = 1
+            GROUP BY r.from_work_report
+        ) r_agg
+            ON r_agg.from_work_report = w.name
         LEFT JOIN `tabWork Order` wo
             ON wo.name = w.work_order
         {where_sql}
@@ -167,6 +183,7 @@ def get_data(filters):
             {
                 "employee": row.employee,
                 "employee_name": row.employee_name,
+                "product_name": row.product_name,
                 "work_order": row.work_order,
                 "workstation": row.workstation,
                 "total_valid_qty": int(total_valid),
@@ -199,14 +216,16 @@ def get_total_row(data):
         avg_rate = 0.0
 
     return {
-        "employee": "合计",
-        "employee_name": "",
+        "employee": "",
+        "employee_name": "合计",
+        "product_name": "",
         "work_order": "",
         "workstation": "",
         "total_valid_qty": sum_valid,
         "total_qty": sum_total,
         "total_defect_qty": sum_defect,
         "defect_rate": round(avg_rate, 2),
+        "is_total_row": 1,
     }
 
 
