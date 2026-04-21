@@ -9,7 +9,11 @@ from frappe.utils import flt
 
 
 class ReworkRecord(Document):
-	pass
+	def apply_submitted_rework_record(self):
+		apply_submitted_rework_record(self)
+
+	def rollback_cancelled_rework_record(self):
+		rollback_cancelled_rework_record(self)
 
 
 def _get_rework_doc(doc_or_name):

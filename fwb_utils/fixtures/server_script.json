@@ -34,7 +34,7 @@
   "rate_limit_count": 5,
   "rate_limit_seconds": 86400,
   "reference_doctype": "Rework Record",
-  "script": "from fwb_utils.fwb_manufacturing.doctype.rework_record.rework_record import apply_submitted_rework_record\n\napply_submitted_rework_record(doc)",
+  "script": "doc.apply_submitted_rework_record()",
   "script_type": "DocType Event"
  },
  {
@@ -72,7 +72,7 @@
   "rate_limit_count": 5,
   "rate_limit_seconds": 86400,
   "reference_doctype": "Shipment Record",
-  "script": "import frappe\nfrom frappe.utils import get_datetime, now_datetime\n\nif doc.work_order:\n    bom_no = frappe.db.get_value(\"Work Order\", doc.work_order, \"bom_no\")\n    if bom_no:\n        rate = frappe.db.get_value(\"BOM\", bom_no, \"custom_piece_rate\")\n        if rate:\n            doc.custom_piece_rate = rate\n\nif doc.qty and doc.custom_piece_rate:\n    doc.total_amount = doc.qty * doc.custom_piece_rate\nelse:\n    doc.total_amount = 0\n\nif doc.start_time and doc.end_time:\n    start = get_datetime(doc.start_time)\n    end = get_datetime(doc.end_time)\n    seconds = (end - start).total_seconds()\n    if seconds < 0:\n        frappe.throw(\"结束时间不能早于开始时间\")\n    doc.duration = seconds\n\nif not doc.get(\"created_at\"):\n    doc.created_at = now_datetime()",
+  "script": "if doc.work_order:\n    bom_no = frappe.db.get_value(\"Work Order\", doc.work_order, \"bom_no\")\n    if bom_no:\n        rate = frappe.db.get_value(\"BOM\", bom_no, \"custom_piece_rate\")\n        if rate:\n            doc.custom_piece_rate = rate\n\nif doc.qty and doc.custom_piece_rate:\n    doc.total_amount = doc.qty * doc.custom_piece_rate\nelse:\n    doc.total_amount = 0\n\nif doc.start_time and doc.end_time:\n    start = frappe.utils.get_datetime(doc.start_time)\n    end = frappe.utils.get_datetime(doc.end_time)\n    seconds = (end - start).total_seconds()\n    if seconds < 0:\n        frappe.throw(\"结束时间不能早于开始时间\")\n    doc.duration = seconds\n\nif not doc.get(\"created_at\"):\n    doc.created_at = frappe.utils.now_datetime()",
   "script_type": "DocType Event"
  },
  {
@@ -129,7 +129,7 @@
   "rate_limit_count": 5,
   "rate_limit_seconds": 86400,
   "reference_doctype": "Rework Record",
-  "script": "from fwb_utils.fwb_manufacturing.doctype.rework_record.rework_record import rollback_cancelled_rework_record\n\nrollback_cancelled_rework_record(doc)",
+  "script": "doc.rollback_cancelled_rework_record()",
   "script_type": "DocType Event"
  },
  {
