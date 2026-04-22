@@ -104,25 +104,24 @@
    "wildcard_filter": 0
   },
   {
-   "fieldname": "product_name",
+   "fieldname": "work_order",
    "fieldtype": "Data",
-   "label": "\u4ea7\u54c1\u540d (\u652f\u6301\u6a21\u7cca)",
+   "label": "\u5de5\u5355\u53f7",
    "mandatory": 0,
    "wildcard_filter": 0
   },
   {
-   "fieldname": "work_order",
-   "fieldtype": "Link",
-   "label": "\u5de5\u5355\u53f7",
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "label": "\u4ea7\u54c1\u540d (\u652f\u6301\u6a21\u7cca)",
    "mandatory": 0,
-   "options": " Work Order",
    "wildcard_filter": 0
   }
  ],
  "idx": 0,
  "is_standard": "Yes",
  "letterhead": null,
- "modified": "2026-01-10 19:10:48.770748",
+ "modified": "2026-04-22 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Production Total Verification",
