@@ -22,6 +22,12 @@
    "width": 0
   },
   {
+   "fieldname": "order_qty",
+   "fieldtype": "Int",
+   "label": "\u5de5\u5355\u603b\u6570",
+   "width": 0
+  },
+  {
    "fieldname": "woodworking_qty",
    "fieldtype": "Int",
    "label": "\u6728\u5de5\u603b\u6570",

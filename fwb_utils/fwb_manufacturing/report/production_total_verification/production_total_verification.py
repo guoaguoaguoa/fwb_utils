@@ -29,6 +29,12 @@ def get_columns():
             "fieldtype": "Data",
             "width": 180
         },
+        {
+            "fieldname": "order_qty",
+            "label": "工单总数",
+            "fieldtype": "Int",
+            "width": 90
+        },
         # --- 6个工作站统计 ---
         {
             "fieldname": "woodworking_qty",
@@ -91,7 +97,7 @@ def get_data(filters):
     conditions = get_conditions(filters)
     
     # SQL 逻辑说明：
-    # 1. 关联 Work Order 获取下单日期和产品名
+    # 1. 关联 Work Order 获取下单日期、产品名和工单总数
     # 2. 关联 BOM 获取尺寸
     # 3. 使用 SUM(CASE...) 将行数据(工作站)转置为列数据(总数)
     
@@ -100,6 +106,7 @@ def get_data(filters):
             DATE(wo.planned_start_date) as order_date,
             wr.work_order,
             wo.item_name as product_name,
+            wo.qty as order_qty,
             
             /* 数据透视：按工作站汇总数量 */
             SUM(CASE WHEN wr.workstation = '木工房' THEN wr.valid_qty ELSE 0 END) as woodworking_qty,
