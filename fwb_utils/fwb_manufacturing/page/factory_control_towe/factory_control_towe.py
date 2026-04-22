@@ -26,7 +26,7 @@ WORKSTATION_ORDER = {workstation: idx for idx, (workstation, _, _) in enumerate(
 
 
 @frappe.whitelist()
-def get_dashboard_data(from_date=None, to_date=None):
+def get_dashboard_data(from_date=None, to_date=None, product_name=None, sample_qty_threshold=None):
     """Return aggregated data for Factory Control Tower page."""
 
     # 默认统计最近 7 天
@@ -37,12 +37,13 @@ def get_dashboard_data(from_date=None, to_date=None):
 
     from_date = str(getdate(from_date))
     to_date = str(getdate(to_date))
+    dashboard_filters = _get_dashboard_filters(product_name, sample_qty_threshold)
 
-    kpi = _get_kpi_block(from_date, to_date)
-    mrc_list = _get_mrc_progress_list()
-    due_warning = _get_due_warning_list()
-    ws_progress = _get_workstation_progress(from_date, to_date)
-    stage_overview = _get_stage_overview(from_date, to_date)
+    kpi = _get_kpi_block(from_date, to_date, dashboard_filters)
+    mrc_list = _get_mrc_progress_list(dashboard_filters)
+    due_warning = _get_due_warning_list(dashboard_filters)
+    ws_progress = _get_workstation_progress(from_date, to_date, dashboard_filters)
+    stage_overview = _get_stage_overview(from_date, to_date, dashboard_filters)
 
     return {
         "kpi": kpi,
@@ -53,10 +54,50 @@ def get_dashboard_data(from_date=None, to_date=None):
     }
 
 
+def _get_dashboard_filters(product_name=None, sample_qty_threshold=None):
+    product_name = str(product_name or "").strip()
+    threshold = flt(sample_qty_threshold or 0)
+    if threshold < 0:
+        threshold = 0
+
+    return frappe._dict(
+        {
+            "product_name": product_name,
+            "product_name_like": f"%{product_name}%" if product_name else None,
+            "sample_qty_threshold": threshold,
+        }
+    )
+
+
+def _ensure_dashboard_filters(dashboard_filters=None):
+    if not dashboard_filters:
+        return _get_dashboard_filters()
+    return dashboard_filters
+
+
+def _get_work_order_filter_sql(dashboard_filters=None, alias="wo"):
+    dashboard_filters = _ensure_dashboard_filters(dashboard_filters)
+    conditions = []
+    params = {}
+
+    if dashboard_filters.product_name:
+        conditions.append(f"{alias}.item_name LIKE %(product_name)s")
+        params["product_name"] = dashboard_filters.product_name_like
+
+    if flt(dashboard_filters.sample_qty_threshold or 0) > 0:
+        conditions.append(f"IFNULL({alias}.qty, 0) > %(sample_qty_threshold)s")
+        params["sample_qty_threshold"] = flt(dashboard_filters.sample_qty_threshold)
+
+    if not conditions:
+        return "", params
+
+    return " AND " + " AND ".join(conditions), params
+
+
 # ----------------------------------------------------------------------
 # 顶部 KPI
 # ----------------------------------------------------------------------
-def _get_kpi_block(from_date, to_date):
+def _get_kpi_block(from_date, to_date, dashboard_filters=None):
     """Compute top-level KPI numbers.
 
     - work_order_total: 区间内工单总数（docstatus < 2, planned_start_date 落在区间）
@@ -68,6 +109,8 @@ def _get_kpi_block(from_date, to_date):
     - range_defect_rate: 区间内 SUM(defect_qty) / SUM(qty)
     - range_wage_amount: 区间内 FWB Work Report.total_amount 之和
     """
+
+    wo_filter_sql, wo_filter_params = _get_work_order_filter_sql(dashboard_filters, "wo")
 
     # 工单数量 + 盒数（按 planned_start_date 过滤）
     wo_rows = frappe.db.sql(
@@ -87,13 +130,14 @@ def _get_kpi_block(from_date, to_date):
                     ELSE 0
                 END
             ) AS completed_qty
-        FROM `tabWork Order`
+        FROM `tabWork Order` wo
         WHERE
-            docstatus < 2
-            AND planned_start_date IS NOT NULL
-            AND DATE(planned_start_date) BETWEEN %(from_date)s AND %(to_date)s
-        """,
-        {"from_date": from_date, "to_date": to_date},
+            wo.docstatus < 2
+            AND wo.planned_start_date IS NOT NULL
+            AND DATE(wo.planned_start_date) BETWEEN %(from_date)s AND %(to_date)s
+            {wo_filter_sql}
+        """.format(wo_filter_sql=wo_filter_sql),
+        dict({"from_date": from_date, "to_date": to_date}, **wo_filter_params),
         as_dict=True,
     )
 
@@ -115,17 +159,23 @@ def _get_kpi_block(from_date, to_date):
     prod_rows = frappe.db.sql(
         """
         SELECT
-            SUM(IFNULL(valid_qty, 0))   AS total_valid_qty,
-            SUM(IFNULL(qty, 0))         AS total_qty,
-            SUM(IFNULL(defect_qty, 0))  AS total_defect_qty
-        FROM `tabFWB Work Report`
+            SUM(IFNULL(w.valid_qty, 0))   AS total_valid_qty,
+            SUM(IFNULL(w.qty, 0))         AS total_qty,
+            SUM(IFNULL(w.defect_qty, 0))  AS total_defect_qty
+        FROM `tabFWB Work Report` w
+        INNER JOIN `tabWork Order` wo
+            ON w.work_order = wo.name
         WHERE
-            docstatus = 1
+            w.docstatus = 1
             AND {normal_condition}
-            AND created_at >= %(from_datetime)s
-            AND created_at <= %(to_datetime)s
-        """.format(normal_condition=_normal_work_report_condition()),
-        _get_work_report_params(from_date, to_date),
+            AND w.created_at >= %(from_datetime)s
+            AND w.created_at <= %(to_datetime)s
+            {wo_filter_sql}
+        """.format(
+            normal_condition=_normal_work_report_condition("w"),
+            wo_filter_sql=wo_filter_sql,
+        ),
+        dict(_get_work_report_params(from_date, to_date), **wo_filter_params),
         as_dict=True,
     )
 
@@ -147,15 +197,21 @@ def _get_kpi_block(from_date, to_date):
     wage_rows = frappe.db.sql(
         """
         SELECT
-            SUM(IFNULL(total_amount, 0)) AS total_amount
-        FROM `tabFWB Work Report`
+            SUM(IFNULL(w.total_amount, 0)) AS total_amount
+        FROM `tabFWB Work Report` w
+        INNER JOIN `tabWork Order` wo
+            ON w.work_order = wo.name
         WHERE
-            docstatus = 1
+            w.docstatus = 1
             AND {normal_condition}
-            AND created_at >= %(from_datetime)s
-            AND created_at <= %(to_datetime)s
-        """.format(normal_condition=_normal_work_report_condition()),
-        _get_work_report_params(from_date, to_date),
+            AND w.created_at >= %(from_datetime)s
+            AND w.created_at <= %(to_datetime)s
+            {wo_filter_sql}
+        """.format(
+            normal_condition=_normal_work_report_condition("w"),
+            wo_filter_sql=wo_filter_sql,
+        ),
+        dict(_get_work_report_params(from_date, to_date), **wo_filter_params),
         as_dict=True,
     )
 
@@ -178,8 +234,10 @@ def _get_kpi_block(from_date, to_date):
 # ----------------------------------------------------------------------
 # 物料齐套进度（按工单）
 # ----------------------------------------------------------------------
-def _get_mrc_progress_list():
+def _get_mrc_progress_list(dashboard_filters=None):
     """Return material readiness progress per Work Order."""
+
+    wo_filter_sql, wo_filter_params = _get_work_order_filter_sql(dashboard_filters, "wo")
 
     rows = frappe.db.sql(
         """
@@ -193,8 +251,11 @@ def _get_mrc_progress_list():
         FROM `tabMaterial Readiness Check` m
         INNER JOIN `tabMaterial Readiness Check Item` i
             ON i.parent = m.name
+        LEFT JOIN `tabWork Order` wo
+            ON wo.name = m.work_order
         WHERE
             m.docstatus < 2
+            {wo_filter_sql}
         GROUP BY
             m.work_order
         HAVING
@@ -202,7 +263,8 @@ def _get_mrc_progress_list():
         ORDER BY
             m.work_order DESC
         LIMIT 50
-        """,
+        """.format(wo_filter_sql=wo_filter_sql),
+        wo_filter_params,
         as_dict=True,
     )
 
@@ -249,29 +311,31 @@ def _get_mrc_progress_list():
 # ----------------------------------------------------------------------
 # 交期预警（未来 7 天）
 # ----------------------------------------------------------------------
-def _get_due_warning_list():
+def _get_due_warning_list(dashboard_filters=None):
     """Return Work Orders with expected_delivery_date in next 7 days."""
 
     today = nowdate()
     end_date = add_days(today, 7)
+    wo_filter_sql, wo_filter_params = _get_work_order_filter_sql(dashboard_filters, "wo")
 
     wo_rows = frappe.db.sql(
         """
         SELECT
-            name,
-            item_name,
-            qty,
-            expected_delivery_date,
-            planned_start_date
-        FROM `tabWork Order`
+            wo.name,
+            wo.item_name,
+            wo.qty,
+            wo.expected_delivery_date,
+            wo.planned_start_date
+        FROM `tabWork Order` wo
         WHERE
-            docstatus < 2
-            AND expected_delivery_date IS NOT NULL
-            AND expected_delivery_date BETWEEN %(today)s AND %(end_date)s
+            wo.docstatus < 2
+            AND wo.expected_delivery_date IS NOT NULL
+            AND wo.expected_delivery_date BETWEEN %(today)s AND %(end_date)s
+            {wo_filter_sql}
         ORDER BY
-            expected_delivery_date ASC, name ASC
-        """,
-        {"today": today, "end_date": end_date},
+            wo.expected_delivery_date ASC, wo.name ASC
+        """.format(wo_filter_sql=wo_filter_sql),
+        dict({"today": today, "end_date": end_date}, **wo_filter_params),
         as_dict=True,
     )
 
@@ -337,10 +401,14 @@ def _get_due_warning_list():
 # ----------------------------------------------------------------------
 # 各工站生产总览
 # ----------------------------------------------------------------------
-def _get_workstation_progress(from_date, to_date):
+def _get_workstation_progress(from_date, to_date, dashboard_filters=None):
     """Summarize production and defects per workstation label."""
 
     params = _get_work_report_params(from_date, to_date)
+    wo_filter_sql, wo_filter_params = _get_work_order_filter_sql(
+        dashboard_filters,
+        "wo_filter",
+    )
     period_rows = frappe.db.sql(
         """
         SELECT
@@ -350,15 +418,21 @@ def _get_workstation_progress(from_date, to_date):
             SUM(IFNULL(w.valid_qty, 0))  AS total_valid_qty,
             SUM(IFNULL(w.defect_qty, 0)) AS total_defect_qty
         FROM `tabFWB Work Report` w
+        INNER JOIN `tabWork Order` wo_filter
+            ON wo_filter.name = w.work_order
         WHERE
             w.docstatus = 1
             AND {normal_condition}
             AND w.created_at >= %(from_datetime)s
             AND w.created_at <= %(to_datetime)s
+            {wo_filter_sql}
         GROUP BY
             w.work_order, w.workstation
-        """.format(normal_condition=_normal_work_report_condition("w")),
-        params,
+        """.format(
+            normal_condition=_normal_work_report_condition("w"),
+            wo_filter_sql=wo_filter_sql,
+        ),
+        dict(params, **wo_filter_params),
         as_dict=True,
     )
 
@@ -464,21 +538,31 @@ def _get_workstation_progress(from_date, to_date):
     return result
 
 
-def _get_stage_overview(from_date, to_date):
+def _get_stage_overview(from_date, to_date, dashboard_filters=None):
     params = _get_work_report_params(from_date, to_date)
+    wo_filter_sql, wo_filter_params = _get_work_order_filter_sql(
+        dashboard_filters,
+        "wo_filter",
+    )
     period_work_orders = frappe.db.sql(
         """
         SELECT DISTINCT
             w.work_order
         FROM `tabFWB Work Report` w
+        INNER JOIN `tabWork Order` wo_filter
+            ON wo_filter.name = w.work_order
         WHERE
             w.docstatus = 1
             AND {normal_condition}
             AND w.created_at >= %(from_datetime)s
             AND w.created_at <= %(to_datetime)s
             AND IFNULL(w.work_order, '') != ''
-        """.format(normal_condition=_normal_work_report_condition("w")),
-        params,
+            {wo_filter_sql}
+        """.format(
+            normal_condition=_normal_work_report_condition("w"),
+            wo_filter_sql=wo_filter_sql,
+        ),
+        dict(params, **wo_filter_params),
         as_dict=True,
     )
     work_order_names = {row.work_order for row in period_work_orders if row.work_order}

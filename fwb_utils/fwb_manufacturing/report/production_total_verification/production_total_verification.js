@@ -73,7 +73,7 @@ frappe.query_reports["Production Total Verification"] = {
 };
 
 function ptv_setup_month_shortcuts(report, prefix) {
-    if (window.innerWidth >= 992) {
+    if (!ptv_is_mobile_width()) {
         report.page.add_inner_button(__("⬅️ 上一月"), function() {
             ptv_go_prev_month(report);
         });
@@ -85,10 +85,14 @@ function ptv_setup_month_shortcuts(report, prefix) {
         });
     }
 
-    if (window.innerWidth < 992) {
+    if (ptv_is_mobile_width()) {
         ptv_inject_kiosk_css(prefix);
         ptv_inject_mobile_toolbar(report, prefix);
     }
+}
+
+function ptv_is_mobile_width() {
+    return window.innerWidth < 768;
 }
 
 function ptv_inject_report_legend(report, prefix) {
@@ -129,6 +133,7 @@ function ptv_go_prev_month(report) {
     }
 
     const current_obj = frappe.datetime.str_to_obj(current_from_str);
+    current_obj.setDate(1);
     current_obj.setMonth(current_obj.getMonth() - 1);
 
     const year = current_obj.getFullYear();
@@ -236,7 +241,7 @@ function ptv_inject_kiosk_css(prefix) {
     }
 
     const css = `
-        @media only screen and (max-width: 992px) {
+        @media only screen and (max-width: 767px) {
             .page-actions { display: none !important; }
             .navbar-brand, .navbar-home { pointer-events: none !important; opacity: 0.3; }
             .navbar-center, .navbar-search, .search-bar, form[role="search"] { display: none !important; }

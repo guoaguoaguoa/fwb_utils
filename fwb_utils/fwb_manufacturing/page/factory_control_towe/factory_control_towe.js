@@ -32,6 +32,22 @@ function build_layout(page) {
                     <div class="fct-subtitle">关键生产与物料状态一目了然</div>
                 </div>
                 <div class="fct-actions">
+                    <div class="fct-filter-group">
+                        <span class="fct-filter-label">产品名</span>
+                        <input type="text"
+                               class="form-control input-sm fct-product-name"
+                               placeholder="支持模糊搜索">
+                    </div>
+                    <div class="fct-filter-group fct-sample-filter"
+                         title="0 不过滤；输入 N 后隐藏工单数小于等于 N 的工单">
+                        <span class="fct-filter-label">样品阈值</span>
+                        <input type="number"
+                               min="0"
+                               step="1"
+                               value="0"
+                               class="form-control input-sm fct-sample-threshold">
+                        <span class="fct-filter-hint">0 不过滤；输入 N 隐藏 ≤ N</span>
+                    </div>
                     <input type="date" class="form-control input-sm fct-date-input fct-date-from">
                     <span class="fct-date-sep">至</span>
                     <input type="date" class="form-control input-sm fct-date-input fct-date-to">
@@ -215,6 +231,12 @@ function build_layout(page) {
         go_current_month(page);
     });
 
+    $actions.find(".fct-product-name, .fct-sample-threshold").on("keydown", function (event) {
+        if (event.key === "Enter") {
+            load_dashboard_data(page);
+        }
+    });
+
     // 应用：使用当前选择的日期区间
     $actions.find(".fct-apply-range").on("click", function () {
         load_dashboard_data(page);
@@ -296,6 +318,28 @@ function inject_factory_control_css() {
         align-items: center;
         gap: 6px;
         flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    .fct-filter-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 30px;
+    }
+    .fct-filter-label,
+    .fct-filter-hint {
+        font-size: 12px;
+        color: #64748b;
+        white-space: nowrap;
+    }
+    .fct-product-name {
+        width: 150px;
+    }
+    .fct-sample-threshold {
+        width: 76px;
+    }
+    .fct-filter-hint {
+        color: #94a3b8;
     }
     .fct-date-input {
         width: 130px;
@@ -441,6 +485,9 @@ function inject_factory_control_css() {
             flex-direction: column;
             align-items: flex-start;
         }
+        .fct-actions {
+            justify-content: flex-start;
+        }
         .fct-kpi-row {
             flex-direction: column;
         }
@@ -457,6 +504,8 @@ function load_dashboard_data(page) {
     const $main = $(page.main);
     const from_date = $main.find(".fct-date-from").val();
     const to_date = $main.find(".fct-date-to").val();
+    const product_name = ($main.find(".fct-product-name").val() || "").trim();
+    const sample_qty_threshold = get_sample_qty_threshold($main);
 
     frappe.dom.freeze("正在加载工厂总览数据...");
 
@@ -465,6 +514,8 @@ function load_dashboard_data(page) {
         args: {
             from_date: from_date,
             to_date: to_date,
+            product_name: product_name,
+            sample_qty_threshold: sample_qty_threshold,
         },
         callback: function (r) {
             frappe.dom.unfreeze();
@@ -492,6 +543,17 @@ function load_dashboard_data(page) {
             frappe.msgprint("获取工厂总览数据失败。");
         },
     });
+}
+
+function get_sample_qty_threshold($root) {
+    const rawValue = $root.find(".fct-sample-threshold").val();
+    const threshold = parseFloat(rawValue);
+
+    if (!isFinite(threshold) || threshold <= 0) {
+        return 0;
+    }
+
+    return threshold;
 }
 
 function render_kpi_block($root, kpi) {
