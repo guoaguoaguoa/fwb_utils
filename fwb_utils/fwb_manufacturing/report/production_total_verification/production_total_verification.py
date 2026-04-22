@@ -152,7 +152,7 @@ def get_data(filters):
             FROM
                 `tabFWB Work Report` wr_cumulative
             WHERE
-                wr_cumulative.docstatus < 2
+                wr_cumulative.docstatus = 1
                 AND (
                     wr_cumulative.rework_type = '否'
                     OR wr_cumulative.rework_type IS NULL
@@ -164,7 +164,7 @@ def get_data(filters):
         ) wr_cumulative_totals ON wr_cumulative_totals.work_order = wr.work_order
         
         WHERE
-            wr.docstatus < 2  /* 0=草稿, 1=已提交 (排除2=已取消) */
+            wr.docstatus = 1  /* 只统计已提交报工，排除草稿和已取消 */
             AND (wr.rework_type = '否' OR wr.rework_type IS NULL OR wr.rework_type = '')
             {conditions}
             

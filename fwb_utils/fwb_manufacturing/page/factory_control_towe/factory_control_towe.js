@@ -35,6 +35,12 @@ function build_layout(page) {
                     <input type="date" class="form-control input-sm fct-date-input fct-date-from">
                     <span class="fct-date-sep">至</span>
                     <input type="date" class="form-control input-sm fct-date-input fct-date-to">
+                    <button class="btn btn-default btn-sm fct-prev-month">
+                        上一月
+                    </button>
+                    <button class="btn btn-default btn-sm fct-current-month">
+                        回当月
+                    </button>
                     <button class="btn btn-default btn-sm fct-apply-range">
                         应用
                     </button>
@@ -148,6 +154,38 @@ function build_layout(page) {
             </div>
 
             <div class="fct-grid-row">
+                <div class="fct-panel fct-panel-full" data-panel="stage-overview">
+                    <div class="fct-panel-header">
+                        <div class="fct-panel-title">工单阶段</div>
+                        <div class="fct-panel-subtitle">按工单查看当前工序、流转等待与异常提示</div>
+                    </div>
+                    <div class="fct-panel-body">
+                        <div class="fct-table-wrapper">
+                            <table class="table table-condensed table-bordered fct-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 16%;">工单号</th>
+                                        <th style="width: 32%;">产品名</th>
+                                        <th style="width: 10%;">工单数</th>
+                                        <th style="width: 12%;">当前阶段</th>
+                                        <th style="width: 14%;">流转等待</th>
+                                        <th style="width: 16%;">整体提示</th>
+                                    </tr>
+                                </thead>
+                                <tbody data-body="stage-overview">
+                                    <tr>
+                                        <td colspan="6" class="text-muted text-center">
+                                            正在加载工单阶段数据...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fct-grid-row">
                 <div class="fct-panel fct-panel-full" data-panel="workstation-progress">
                     <div class="fct-panel-header">
                         <div class="fct-panel-title">生产总览</div>
@@ -169,6 +207,14 @@ function build_layout(page) {
 
     const $actions = $main.find(".fct-actions");
 
+    $actions.find(".fct-prev-month").on("click", function () {
+        go_prev_month(page);
+    });
+
+    $actions.find(".fct-current-month").on("click", function () {
+        go_current_month(page);
+    });
+
     // 应用：使用当前选择的日期区间
     $actions.find(".fct-apply-range").on("click", function () {
         load_dashboard_data(page);
@@ -188,6 +234,37 @@ function init_date_filters(page) {
 
     $main.find(".fct-date-to").val(today);
     $main.find(".fct-date-from").val(from);
+}
+
+function go_prev_month(page) {
+    const $main = $(page.main);
+    let current_from = $main.find(".fct-date-from").val();
+    if (!current_from) {
+        current_from = frappe.datetime.get_today();
+    }
+
+    const current_obj = frappe.datetime.str_to_obj(current_from);
+    current_obj.setDate(1);
+    current_obj.setMonth(current_obj.getMonth() - 1);
+
+    const year = current_obj.getFullYear();
+    const month = current_obj.getMonth();
+    const first_day = new Date(year, month, 1);
+    const last_day = new Date(year, month + 1, 0);
+
+    $main.find(".fct-date-from").val(frappe.datetime.obj_to_str(first_day));
+    $main.find(".fct-date-to").val(frappe.datetime.obj_to_str(last_day));
+    load_dashboard_data(page);
+}
+
+function go_current_month(page) {
+    const $main = $(page.main);
+    const today = new Date();
+    const first_day = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    $main.find(".fct-date-from").val(frappe.datetime.obj_to_str(first_day));
+    $main.find(".fct-date-to").val(frappe.datetime.obj_to_str(today));
+    load_dashboard_data(page);
 }
 
 function inject_factory_control_css() {
@@ -323,6 +400,22 @@ function inject_factory_control_css() {
     .fct-badge-link a {
         font-size: 11px;
     }
+    .fct-muted-qty {
+        color: #9ca3af;
+        font-weight: 400;
+    }
+    .fct-stage-tip {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: #f3f4f6;
+        color: #4b5563;
+        font-size: 11px;
+    }
+    .fct-stage-tip-warning {
+        background: #fff7ed;
+        color: #c2410c;
+    }
     .fct-ws-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -387,6 +480,7 @@ function load_dashboard_data(page) {
                 render_kpi_block($main, data.kpi || {});
                 render_mrc_list($main, data.mrc_list || []);
                 render_due_warning($main, data.due_warning || []);
+                render_stage_overview($main, data.stage_overview || []);
                 render_workstation_progress($main, data.workstation_progress || {}, data.kpi || {});
             } catch (e) {
                 console.error("Error rendering Factory Control Tower:", e);
@@ -525,6 +619,43 @@ function render_due_warning($root, list) {
     });
 }
 
+function render_stage_overview($root, list) {
+    const $tbody = $root.find("tbody[data-body='stage-overview']");
+    $tbody.empty();
+
+    if (!list.length) {
+        $tbody.append(`
+            <tr>
+                <td colspan="6" class="text-muted text-center">
+                    当前统计区间内暂无工单阶段数据。
+                </td>
+            </tr>
+        `);
+        return;
+    }
+
+    list.forEach(function (row) {
+        const qty = parseFloat(row.work_order_qty || 0) || 0;
+        const tip = row.overall_tip || "";
+        const tip_class = tip === "部分流转" ? "fct-stage-tip fct-stage-tip-warning" : "fct-stage-tip";
+
+        $tbody.append(`
+            <tr>
+                <td>
+                    <a href="${row.work_order_url || "#"}" target="_blank">
+                        ${frappe.utils.escape_html(row.work_order || "")}
+                    </a>
+                </td>
+                <td>${frappe.utils.escape_html(row.product_name || "")}</td>
+                <td style="text-align:right;">${qty.toFixed(0)}</td>
+                <td>${frappe.utils.escape_html(row.current_stage || "")}</td>
+                <td>${frappe.utils.escape_html(row.flow_wait || "")}</td>
+                <td><span class="${tip_class}">${frappe.utils.escape_html(tip)}</span></td>
+            </tr>
+        `);
+    });
+}
+
 function render_workstation_progress($root, wsProgress, kpi) {
     const $grid = $root.find(".fct-ws-grid");
     $grid.empty();
@@ -560,6 +691,7 @@ function render_workstation_progress($root, wsProgress, kpi) {
         list.forEach(function (row) {
             const wo_qty = parseFloat(row.work_order_qty || 0) || 0;
             const reported = parseFloat(row.reported_qty || 0) || 0;
+            const cumulative = parseFloat(row.cumulative_reported_qty || 0) || 0;
             const defect_qty = parseFloat(row.defect_qty || 0) || 0;
 
             // 完成度 = 已报工数 / 工单数
@@ -586,10 +718,15 @@ function render_workstation_progress($root, wsProgress, kpi) {
 
             const completion_txt = completion.toFixed(1).replace(/\.0$/, "") + "%";
             const over_qty = reported - wo_qty;
+            const cumulative_over_qty = cumulative - wo_qty;
             const extra_text =
                 over_qty > 0
                     ? `（超出 ${over_qty.toFixed(0)} 件）`
+                    : cumulative_over_qty > 0
+                    ? `（累计超出 ${cumulative_over_qty.toFixed(0)} 件）`
                     : "";
+            const reported_class = reported <= 0 && cumulative > 0 ? "fct-muted-qty" : "";
+            const cumulative_class = reported <= 0 && cumulative > 0 ? "fct-muted-qty" : "";
 
             rowsHtml += `
                 <tr>
@@ -603,7 +740,8 @@ function render_workstation_progress($root, wsProgress, kpi) {
                         </a>
                     </td>
                     <td style="text-align:right;">${wo_qty.toFixed(0)}</td>
-                    <td style="text-align:right;">${reported.toFixed(0)}</td>
+                    <td style="text-align:right;" class="${reported_class}">${reported.toFixed(0)}</td>
+                    <td style="text-align:right;" class="${cumulative_class}">${cumulative.toFixed(0)}</td>
                     <td style="text-align:right;">${defect_qty.toFixed(0)}</td>
                     <td>
                         <div class="fct-progress">
@@ -628,11 +766,12 @@ function render_workstation_progress($root, wsProgress, kpi) {
                         <thead>
                             <tr>
                                 <th style="width: 14%;">工单日期</th>
-                                <th style="width: 28%;">产品名</th>
-                                <th style="width: 14%;">工单数</th>
-                                <th style="width: 14%;">已报工数</th>
+                                <th style="width: 24%;">产品名</th>
+                                <th style="width: 12%;">工单数</th>
+                                <th style="width: 12%;">本期报工</th>
+                                <th style="width: 12%;">截至累计</th>
                                 <th style="width: 12%;">次品数</th>
-                                <th style="width: 18%;">进度</th>
+                                <th style="width: 14%;">进度</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -640,7 +779,7 @@ function render_workstation_progress($root, wsProgress, kpi) {
                                 rowsHtml ||
                                 `
                                 <tr>
-                                    <td colspan="6" class="text-muted text-center">
+                                    <td colspan="7" class="text-muted text-center">
                                         暂无数据。
                                     </td>
                                 </tr>

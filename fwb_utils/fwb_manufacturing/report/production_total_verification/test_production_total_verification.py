@@ -89,7 +89,7 @@ class TestProductionTotalVerification(FrappeTestCase):
 		self.assertIn("wr.work_order LIKE %(work_order)s", conditions)
 		self.assertEqual(filters["work_order"], "%WO-260315-02%")
 
-	def test_cumulative_subquery_excludes_cancelled_and_rework_reports(self):
+	def test_get_data_excludes_draft_cancelled_and_rework_reports(self):
 		captured = {}
 
 		def fake_sql(sql, filters, as_dict=False):
@@ -100,10 +100,13 @@ class TestProductionTotalVerification(FrappeTestCase):
 			production_total_verification.get_data({})
 
 		normalized_sql = " ".join(captured["sql"].split()).lower()
+		self.assertIn("wr.docstatus = 1", normalized_sql)
+		self.assertNotIn("wr.docstatus < 2", normalized_sql)
+
 		cumulative_sql = normalized_sql.split("`tabfwb work report` wr_cumulative", 1)[1]
 		cumulative_sql = cumulative_sql.split("group by wr_cumulative.work_order", 1)[0]
 
-		self.assertIn("wr_cumulative.docstatus < 2", cumulative_sql)
+		self.assertIn("wr_cumulative.docstatus = 1", cumulative_sql)
 		self.assertIn("wr_cumulative.rework_type = '否'", cumulative_sql)
 		self.assertIn("wr_cumulative.rework_type is null", cumulative_sql)
 		self.assertIn("wr_cumulative.rework_type = ''", cumulative_sql)
