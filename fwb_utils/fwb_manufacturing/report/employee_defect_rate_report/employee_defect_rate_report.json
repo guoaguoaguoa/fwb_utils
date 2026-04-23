@@ -96,11 +96,10 @@
    "wildcard_filter": 0
   },
   {
-   "fieldname": "finished_bom",
-   "fieldtype": "Link",
-   "label": "\u6210\u54c1\u7269\u6599",
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "label": "\u4ea7\u54c1\u540d",
    "mandatory": 0,
-   "options": "BOM",
    "wildcard_filter": 0
   },
   {

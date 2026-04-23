@@ -1,10 +1,10 @@
 // Copyright (c) 2025, WenZhou Furui Handicraft Co.,Ltd. and contributors
 // For license information, please see license.txt
 
-// v2025.12.09.01 - Employee Defect Rate Report client script
+// v2026.04.23.01 - Employee Defect Rate Report client script
 // - Add workstation filter exclusion (no 发货台 / 打包区 / 质检区)
 // - Add employee filter query depending on selected workstation
-// - Keep finished_bom filter using custom BOM query
+// - Use product_name fuzzy text filter instead of finished_bom Link filter
 
 /* global frappe */
 
@@ -58,15 +58,9 @@ frappe.query_reports["Employee Defect Rate Report"] = {
             options: "Work Order"
         },
         {
-            fieldname: "finished_bom",
-            label: "成品物料",
-            fieldtype: "Link",
-            options: "BOM",
-            get_query: function () {
-                return {
-                    query: "fwb_utils.fwb_manufacturing.report.employee_defect_rate_report.employee_defect_rate_report.bom_for_finished_items"
-                };
-            }
+            fieldname: "product_name",
+            label: "产品名",
+            fieldtype: "Data"
         }
     ],
 

@@ -1,7 +1,7 @@
 # Copyright (c) 2025, WenZhou Furui Handicraft Co.,Ltd. and contributors
 # For license information, please see license.txt
 
-# v2025.12.09.01 - Employee Defect Rate Report backend
+# v2026.04.23.01 - Employee Defect Rate Report backend
 # - Denominator: sum of FWB Work Report.qty (total_qty)
 # - Also show sum of valid_qty (total_valid_qty) for reference
 # - Numerator: sum of Rework Record.defective_qty only
@@ -9,8 +9,7 @@
 #   good-piece recovery does not subtract from this numerator
 # - One row per employee + work_order + workstation
 # - Product name column comes from Work Order.item_name / FWB Work Report.product_name
-# - Filter: finished_bom (BOM) via Work Order.bom_no
-# - Helper: bom_for_finished_items -> only BOMs whose Item Group is under root "成品"
+# - Filter: product_name fuzzy search via Work Order.item_name / FWB Work Report.product_name
 # - New: append a total row (sum of qtys + weighted defect_rate) at bottom
 # - New: employee_for_workstation link query for dependent employee filter
 
@@ -121,10 +120,13 @@ def get_data(filters):
         where_clauses.append("w.workstation = %(workstation)s")
         params["workstation"] = filters.get("workstation")
 
-    # finished_bom -> join Work Order and filter by wo.bom_no
-    if filters.get("finished_bom"):
-        where_clauses.append("wo.bom_no = %(finished_bom)s")
-        params["finished_bom"] = filters.get("finished_bom")
+    product_name = (filters.get("product_name") or "").strip()
+    if product_name:
+        where_clauses.append(
+            "COALESCE(NULLIF(wo.item_name, ''), NULLIF(w.product_name, ''), '') "
+            "LIKE %(product_name)s"
+        )
+        params["product_name"] = f"%{product_name}%"
 
     where_sql = ""
     if where_clauses:
@@ -227,52 +229,6 @@ def get_total_row(data):
         "defect_rate": round(avg_rate, 2),
         "is_total_row": 1,
     }
-
-
-@frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
-def bom_for_finished_items(doctype, txt, searchfield, start, page_len, filters):
-    """
-    Link-field query:
-    Only show BOMs whose Item Group is under "成品" tree (including children).
-    Limited to active + default BOM.
-    """
-    root_group = "成品"
-
-    return frappe.db.sql(
-        """
-        SELECT
-            b.name,
-            b.item,
-            b.item_name
-        FROM `tabBOM` b
-        LEFT JOIN `tabItem` i
-            ON i.name = b.item
-        LEFT JOIN `tabItem Group` ig
-            ON ig.name = i.item_group
-        LEFT JOIN `tabItem Group` root
-            ON root.name = %(root_group)s
-        WHERE
-            b.docstatus < 2
-            AND b.is_active = 1
-            AND b.is_default = 1
-            AND ig.lft >= root.lft
-            AND ig.rgt <= root.rgt
-            AND (
-                b.name LIKE %(txt)s
-                OR IFNULL(b.item, '') LIKE %(txt)s
-                OR IFNULL(b.item_name, '') LIKE %(txt)s
-            )
-        ORDER BY b.modified DESC
-        LIMIT %(start)s, %(page_len)s
-        """,
-        {
-            "txt": f"%{txt}%",
-            "start": start,
-            "page_len": page_len,
-            "root_group": root_group,
-        },
-    )
 
 
 @frappe.whitelist()
