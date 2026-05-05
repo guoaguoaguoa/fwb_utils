@@ -54,7 +54,7 @@
    "fieldname": "work_order",
    "fieldtype": "Link",
    "label": "\u5de5\u5355\u53f7",
-   "options": " Work Order",
+   "options": "Work Order",
    "width": 0
   },
   {
@@ -86,10 +86,9 @@
   },
   {
    "fieldname": "product_name",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "label": "\u4ea7\u54c1\u540d",
    "mandatory": 0,
-   "options": "",
    "wildcard_filter": 0
   },
   {
@@ -97,14 +96,29 @@
    "fieldtype": "Link",
    "label": "\u5de5\u5355\u53f7",
    "mandatory": 0,
-   "options": " Work Order",
+   "options": "Work Order",
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "\u5458\u5de5\u59d3\u540d",
+   "mandatory": 0,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "\u5de5\u4f5c\u7ad9",
+   "mandatory": 0,
+   "options": "Workstation",
    "wildcard_filter": 0
   }
  ],
  "idx": 0,
  "is_standard": "Yes",
  "letterhead": null,
- "modified": "2026-05-05 09:41:49.283334",
+ "modified": "2026-05-05 16:50:00.000000",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Work Report Log",
@@ -125,6 +139,15 @@
   },
   {
    "role": "HR Manager"
+  },
+  {
+   "role": "Stock Manager"
+  },
+  {
+   "role": "Sales Master Manager"
+  },
+  {
+   "role": "Purchase Master Manager"
   },
   {
    "role": "Manufacturing User"

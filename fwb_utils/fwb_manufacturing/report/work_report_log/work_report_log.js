@@ -1,33 +1,17 @@
-// v2026.01.10.09 - 工人个人报工记录 (无限翻页 + 回当月版)
+// v2026.05.05.01 - 工人/管理双视图报工记录
+
+const WORK_REPORT_LOG_MANAGER_ROLES = [
+    "Administrator",
+    "HR Manager",
+    "Manufacturing Manager",
+    "Quality Manager",
+    "Stock Manager",
+    "Sales Master Manager",
+    "Purchase Master Manager"
+];
 
 frappe.query_reports["Work Report Log"] = {
-    "filters": [
-        {
-            "fieldname": "from_date",
-            "label": __("开始于"),
-            "fieldtype": "Date",
-            "default": frappe.datetime.get_today().substring(0, 8) + "01", 
-            "reqd": 1
-        },
-        {
-            "fieldname": "to_date",
-            "label": __("结束于"),
-            "fieldtype": "Date",
-            "default": frappe.datetime.get_today(),
-            "reqd": 1
-        },
-        {
-            "fieldname": "product_name",
-            "label": __("产品"),
-            "fieldtype": "Data"
-        },
-        {
-            "fieldname": "work_order",
-            "label": __("工单"),
-            "fieldtype": "Link",
-            "options": "Work Order"
-        }
-    ],
+    "filters": get_work_report_log_filters(),
 
     "onload": function(report) {
         // === 1. 电脑端逻辑 ===
@@ -58,6 +42,54 @@ frappe.query_reports["Work Report Log"] = {
         });
     }
 };
+
+function get_work_report_log_filters() {
+    const filters = [
+        {
+            "fieldname": "from_date",
+            "label": __("开始于"),
+            "fieldtype": "Date",
+            "default": frappe.datetime.get_today().substring(0, 8) + "01",
+            "reqd": 1
+        },
+        {
+            "fieldname": "to_date",
+            "label": __("结束于"),
+            "fieldtype": "Date",
+            "default": frappe.datetime.get_today(),
+            "reqd": 1
+        },
+        {
+            "fieldname": "product_name",
+            "label": __("产品"),
+            "fieldtype": "Data"
+        },
+        {
+            "fieldname": "work_order",
+            "label": __("工单"),
+            "fieldtype": "Link",
+            "options": "Work Order"
+        }
+    ];
+
+    if (frappe.user.has_role(WORK_REPORT_LOG_MANAGER_ROLES)) {
+        filters.push(
+            {
+                "fieldname": "employee_name",
+                "label": __("员工姓名"),
+                "fieldtype": "Data"
+            },
+            {
+                "fieldname": "workstation",
+                "label": __("工作站"),
+                "fieldtype": "Link",
+                "options": "Workstation"
+            }
+        );
+    }
+
+    return filters;
+}
 
 // ==========================================
 // 核心逻辑函数

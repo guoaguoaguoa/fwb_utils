@@ -2,9 +2,21 @@
 # For license information, please see license.txt
 import frappe
 from frappe.model.document import Document
+from frappe.utils import flt
 
 class FWBWorkReport(Document):
         pass
+
+
+@frappe.whitelist()
+def get_bom_hour_rate(work_order=None, workstation=None):
+    """
+    Server-side lookup for BOM Operation.hour_rate used by worker-side FWB Work Report.
+
+    The browser should not read BOM Operation directly because shop-floor users
+    usually don't have read permission on that child table.
+    """
+    return _get_bom_hour_rate_info(work_order, workstation)
 
 @frappe.whitelist()
 def get_production_employee_query(doctype, txt, searchfield, start, page_len, filters):
@@ -61,3 +73,26 @@ def get_production_employee_query(doctype, txt, searchfield, start, page_len, fi
         },
     )
 
+
+def _get_bom_hour_rate_info(work_order, workstation):
+    if not work_order or not workstation:
+        return {"bom_no": "", "hour_rate": 0.0}
+
+    wo = frappe.db.get_value("Work Order", work_order, ["bom_no"], as_dict=True)
+    bom_no = (wo.bom_no if wo else "") or ""
+    if not bom_no:
+        return {"bom_no": "", "hour_rate": 0.0}
+
+    op = frappe.get_all(
+        "BOM Operation",
+        filters={"parent": bom_no, "workstation": workstation},
+        fields=["hour_rate"],
+        ignore_permissions=True,
+        limit=1,
+    )
+    hour_rate = flt((op[0] or {}).get("hour_rate")) if op else 0.0
+
+    return {
+        "bom_no": bom_no,
+        "hour_rate": hour_rate,
+    }

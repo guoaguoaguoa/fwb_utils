@@ -1,8 +1,18 @@
-# v2026.01.10.06 - 工人个人报工记录 (修复合计行类型错误)
+# v2026.05.05.01 - 工人/管理双视图报工记录
 
 import frappe
 from frappe import _
-from frappe.utils import flt # 引入浮点转换工具
+from frappe.utils import flt
+
+
+MANAGER_VIEW_ROLES = (
+	"HR Manager",
+	"Manufacturing Manager",
+	"Quality Manager",
+	"Stock Manager",
+	"Sales Master Manager",
+	"Purchase Master Manager",
+)
 
 def execute(filters=None):
     columns = get_columns()
@@ -114,18 +124,23 @@ def get_columns():
     ]
 
 def get_data(filters):
-    user = frappe.session.user
-    # 1. 权限控制
-    if user == "Administrator":
-        employee_condition = ""
-    else:
-        employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
-        if not employee:
-            frappe.msgprint("当前账号未关联员工档案，无法查看个人报表。")
-            return []
-        employee_condition = f"AND wr.employee = '{employee}'"
+    filters = frappe._dict(filters or {})
+    where_clauses = ["wr.docstatus < 2"]
 
-    conditions = get_conditions(filters)
+    employee_scope = get_employee_scope_condition()
+    if employee_scope is None:
+        return []
+
+    scope_condition, scope_params = employee_scope
+    if scope_condition:
+        where_clauses.append(scope_condition)
+
+    conditions, condition_params = get_conditions(filters)
+    where_clauses.extend(conditions)
+    params = {}
+    params.update(scope_params)
+    params.update(condition_params)
+    where_sql = " AND ".join(where_clauses)
     
     # 2. 核心 SQL 查询
     sql = f"""
@@ -200,28 +215,75 @@ def get_data(filters):
             AND bom_op.workstation = wr.workstation
         
         WHERE
-            wr.docstatus < 2
-            {employee_condition}
-            {conditions}
+            {where_sql}
             
         ORDER BY
             wr.created_at DESC
     """
     
-    data = frappe.db.sql(sql, filters, as_dict=True)
+    data = frappe.db.sql(sql, params, as_dict=True)
     return data
 
 def get_conditions(filters):
-    conditions = ""
+    filters = frappe._dict(filters or {})
+    conditions = []
+    params = {}
+
     if filters.get("from_date"):
-        filters["from_date"] = f"{filters.get('from_date')} 00:00:00"
-        conditions += " AND wr.created_at >= %(from_date)s"
+        params["from_date"] = f"{filters.get('from_date')} 00:00:00"
+        conditions.append("wr.created_at >= %(from_date)s")
     if filters.get("to_date"):
-        filters["to_date"] = f"{filters.get('to_date')} 23:59:59"
-        conditions += " AND wr.created_at <= %(to_date)s"
+        params["to_date"] = f"{filters.get('to_date')} 23:59:59"
+        conditions.append("wr.created_at <= %(to_date)s")
     if filters.get("work_order"):
-        conditions += " AND wr.work_order = %(work_order)s"
-    if filters.get("product_name"):
-        filters["product_name"] = f"%{filters.get('product_name')}%"
-        conditions += " AND wo.item_name LIKE %(product_name)s"
-    return conditions
+        params["work_order"] = filters.get("work_order")
+        conditions.append("wr.work_order = %(work_order)s")
+
+    product_name = (filters.get("product_name") or "").strip()
+    if product_name:
+        params["product_name"] = f"%{product_name}%"
+        conditions.append("wo.item_name LIKE %(product_name)s")
+
+    employee_name = (filters.get("employee_name") or "").strip()
+    if employee_name:
+        params["employee_name"] = f"%{employee_name}%"
+        conditions.append(
+            "COALESCE(NULLIF(wr.employee_name_display, ''), NULLIF(wr.employee_name, ''), wr.employee, '') LIKE %(employee_name)s"
+        )
+
+    if filters.get("workstation"):
+        params["workstation"] = filters.get("workstation")
+        conditions.append("wr.workstation = %(workstation)s")
+
+    return conditions, params
+
+
+def has_manager_view_access(user=None):
+    user = user or get_current_user()
+    if user == "Administrator":
+        return True
+
+    roles = set(frappe.get_roles(user))
+    return bool(roles.intersection(MANAGER_VIEW_ROLES))
+
+
+def get_employee_scope_condition(user=None):
+    user = user or get_current_user()
+    if has_manager_view_access(user):
+        return "", {}
+
+    employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
+    if not employee:
+        frappe.msgprint(_("当前账号未关联员工档案，无法查看个人报表。"))
+        return None
+
+    return "wr.employee = %(scope_employee)s", {"scope_employee": employee}
+
+
+def get_current_user():
+    session = getattr(frappe.local, "session", None)
+    if getattr(session, "user", None):
+        return session.user
+
+    fallback_session = getattr(frappe, "session", None)
+    return getattr(fallback_session, "user", None) or "Guest"
