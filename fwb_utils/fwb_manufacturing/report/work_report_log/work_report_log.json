@@ -6,49 +6,49 @@
    "fieldname": "report_date",
    "fieldtype": "Date",
    "label": "\u62a5\u5de5\u65e5\u671f",
-   "width": 0
+   "width": 1
   },
   {
    "fieldname": "product_name",
    "fieldtype": "Data",
    "label": "\u4ea7\u54c1\u540d",
-   "width": 0
+   "width": 1
   },
   {
    "fieldname": "wage_type",
    "fieldtype": "Data",
    "label": "\u8ba1\u8d39\u65b9\u5f0f",
-   "width": 0
+   "width": 1
   },
   {
    "fieldname": "rework_type",
    "fieldtype": "Data",
    "label": "\u662f\u5426\u8fd4\u5de5",
-   "width": 0
+   "width": 1
   },
   {
    "fieldname": "produce_qty",
    "fieldtype": "Int",
    "label": "\u62a5\u5de5\u6570\u91cf",
-   "width": 0
+   "width": 1
   },
   {
    "fieldname": "piece_rate",
    "fieldtype": "Float",
    "label": "\u5355\u4ef7",
-   "width": 0
+   "width": 1
   },
   {
    "fieldname": "duration_display",
    "fieldtype": "Data",
    "label": "\u5de5\u65f6",
-   "width": 0
+   "width": 1
   },
   {
    "fieldname": "amount",
    "fieldtype": "Float",
    "label": "\u91d1\u989d",
-   "width": 0
+   "width": 1
   },
   {
    "fieldname": "work_order",
@@ -104,7 +104,7 @@
  "idx": 0,
  "is_standard": "Yes",
  "letterhead": null,
- "modified": "2026-01-10 22:56:31.495228",
+ "modified": "2026-05-05 09:41:49.283334",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Work Report Log",

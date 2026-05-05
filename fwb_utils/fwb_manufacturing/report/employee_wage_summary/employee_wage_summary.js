@@ -1,13 +1,27 @@
 // Copyright (c) 2025, WenZhou Furui Handicraft Co.,Ltd. and contributors
 // For license information, please see license.txt
 
-// v2025.12.09.01 - Employee Wage Summary report JS
+// v2026.05.02.01 - Employee Wage Summary report JS
 // - Add employee filter
 // - When workstation is selected, employee options are limited to employees
 //   who have FWB Work Reports on that workstation
 // - Workstation filter excludes 发货台 / 打包区 / 质检区
+// - Task 5: 报工日期 单元格点击跳转到对应 FWB Work Report
+// - Task 6: 真·移动设备显示底部浮动条; PC (含小窗口) 在右上角添加内置按钮, 二选一
 
 frappe.query_reports["Employee Wage Summary"] = {
+    formatter: function (value, row, column, data, default_formatter) {
+        value = default_formatter(value, row, column, data);
+        // Task 5: 把 posting_date 单元格变成跳转到对应 FWB Work Report 的链接
+        // (合计行 wr_name 为空字符串, 跳过)
+        if (column && column.fieldname === "posting_date" && data && data.wr_name) {
+            value = '<a href="/app/fwb-work-report/' + encodeURIComponent(data.wr_name)
+                + '" style="color:inherit;text-decoration:underline;">'
+                + value + '</a>';
+        }
+        return value;
+    },
+
     filters: [
         {
             fieldname: "from_date",
@@ -58,18 +72,22 @@ frappe.query_reports["Employee Wage Summary"] = {
 };
 
 function ews_setup_month_shortcuts(report, prefix) {
-    if (window.innerWidth >= 992) {
+    // Task 6: 按"是否真·移动设备"判断 (touch + 窄屏), 排除 PC 上把窗口拖小的误判
+    var is_touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    var is_truly_mobile = is_touch && window.innerWidth < 768;
+
+    if (is_truly_mobile) {
+        // 真·移动设备: 只保留底部浮动条
+        ews_inject_kiosk_css(prefix);
+        ews_inject_mobile_toolbar(report, prefix);
+    } else {
+        // PC (含小窗口/笔记本): 只在右上角加内置按钮, 不出现底部浮动条
         report.page.add_inner_button(__("⬅️ 上一月"), function() {
             ews_go_prev_month(report);
         });
         report.page.add_inner_button(__("📅 回当月"), function() {
             ews_go_current_month(report);
         });
-    }
-
-    if (window.innerWidth < 992) {
-        ews_inject_kiosk_css(prefix);
-        ews_inject_mobile_toolbar(report, prefix);
     }
 }
 

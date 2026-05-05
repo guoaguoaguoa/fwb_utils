@@ -3,3 +3,4 @@ __pycache__/
 fix_photo_req.py
 fwb_utils/fwb_manufacturing/doctype/rework_record/test_rework_record.py
 fwb_utils/tests/test_server_script_fixtures.py
+fwb_utils/translations/zh.csv

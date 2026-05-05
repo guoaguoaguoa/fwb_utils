@@ -49,7 +49,7 @@ def get_columns():
             "fieldname": "report_date",
             "label": "日期",
             "fieldtype": "Data", 
-            "width": 60,
+            "width": 80,
             "align": "left"
         },
         {
@@ -163,7 +163,31 @@ def get_data(filters):
             END as piece_rate,
             
             wr.duration_display,
-            wr.total_amount as amount
+
+            /* ========== 金额实时计算 (与 Employee Wage Summary 口径对齐) ==========
+               原本读 wr.total_amount 会把陈旧值带出来 (例如老报工 hourly_rate=0
+               但 BOM hour_rate 后来设过来), 改为按当前 BOM + 报工字段实时算. */
+            CASE
+                /* 计时: BOM hour_rate -> 报工 hourly_rate */
+                WHEN wr.wage_type = '计时' THEN
+                    (IFNULL(wr.duration, 0) / 3600.0) *
+                    CASE
+                        WHEN IFNULL(bom_op.hour_rate, 0) > 0 THEN bom_op.hour_rate
+                        ELSE IFNULL(wr.hourly_rate, 0)
+                    END
+
+                /* 有偿返工: 报工 rework_rate */
+                WHEN wr.rework_type = '有偿返工' AND IFNULL(wr.rework_rate, 0) > 0 THEN
+                    IFNULL(wr.valid_qty, 0) * wr.rework_rate
+
+                /* 普通计件 / 无偿返工: BOM custom_piece_rate -> 报工 custom_piece_rate */
+                ELSE
+                    IFNULL(wr.valid_qty, 0) *
+                    CASE
+                        WHEN IFNULL(bom_op.custom_piece_rate, 0) > 0 THEN bom_op.custom_piece_rate
+                        ELSE IFNULL(wr.custom_piece_rate, 0)
+                    END
+            END as amount
 
         FROM
             `tabFWB Work Report` wr

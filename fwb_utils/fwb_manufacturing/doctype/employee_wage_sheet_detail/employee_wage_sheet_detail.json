@@ -7,6 +7,7 @@
     "engine": "InnoDB",
     "field_order": [
         "section_break_f3cp",
+        "source_work_report",
         "work_order",
         "product_name",
         "size_l",
@@ -26,6 +27,14 @@
         {
             "fieldname": "section_break_f3cp",
             "fieldtype": "Section Break"
+        },
+        {
+            "fieldname": "source_work_report",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "\u62a5\u5de5\u5355\u53f7",
+            "options": "FWB Work Report",
+            "read_only": 1
         },
         {
             "fieldname": "work_order",
@@ -120,7 +129,7 @@
     "index_web_pages_for_search": 1,
     "istable": 1,
     "links": [],
-    "modified": "2025-12-13 19:27:36.849591",
+    "modified": "2026-05-02 13:00:00.000000",
     "modified_by": "Administrator",
     "module": "Fwb Manufacturing",
     "name": "Employee Wage Sheet Detail",

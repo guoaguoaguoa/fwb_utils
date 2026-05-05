@@ -85,6 +85,7 @@ def generate_wage_details(wage_sheet_name: str):
     for r in rows:
         child = ws.append("details", {})
 
+        child.source_work_report = r.get("work_report")
         child.work_order = r.work_order
         child.product_name = r.product_name
         child.size_l = r.size_l
@@ -257,6 +258,7 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
         result.append(
             frappe._dict(
                 {
+                    "work_report": row.work_report,
                     "work_order": work_order,
                     "workstation": workstation,
                     "product_name": product_name,
@@ -288,6 +290,7 @@ def _collect_penalty_rows(employee, from_date, to_date):
     sql = """
         SELECT
             r.name,
+            r.from_work_report,
             r.work_order,
             r.workstation,
             COALESCE(r.product_name, w.product_name) as product_name,
@@ -326,6 +329,7 @@ def _collect_penalty_rows(employee, from_date, to_date):
                      size_h = bom.custom_size_h
                      
         res.append(frappe._dict({
+            "work_report": row.from_work_report,
             "work_order": row.work_order,
             "workstation": row.workstation,
             "product_name": row.product_name,

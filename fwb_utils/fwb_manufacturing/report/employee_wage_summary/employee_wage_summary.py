@@ -169,6 +169,7 @@ def get_data(filters):
         duration_seconds = flt(wr.duration or 0)
 
         row = {
+            "wr_name": wr.name,
             "posting_date": wr.posting_date,
             "employee": wr.employee,
             "employee_name": wr.employee_name_display,
@@ -198,6 +199,7 @@ def get_data(filters):
     # append total row at bottom (affected by filters)
     if data:
         total_row = {
+            "wr_name": "",
             "posting_date": None,
             "employee": "",
             "employee_name": "合计",
