@@ -1,0 +1,214 @@
+{
+ "app": "fwb_utils",
+ "charts": [],
+ "content": "[{\"id\":\"hdr_top\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>快捷入口</b></span>\",\"col\":12}},{\"id\":\"sc_fct\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"工厂总览\",\"col\":3}},{\"id\":\"sc_wr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"报工录入\",\"col\":3}},{\"id\":\"sc_mrc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"物料齐套\",\"col\":3}},{\"id\":\"sc_ews\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"工资结算\",\"col\":3}},{\"id\":\"spacer_1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hdr_cards\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>业务模块</b></span>\",\"col\":12}},{\"id\":\"card_wq\",\"type\":\"card\",\"data\":{\"card_name\":\"报工与质量\",\"col\":4}},{\"id\":\"card_mrc\",\"type\":\"card\",\"data\":{\"card_name\":\"物料齐套\",\"col\":4}},{\"id\":\"card_wage\",\"type\":\"card\",\"data\":{\"card_name\":\"工资结算\",\"col\":4}},{\"id\":\"card_rpt\",\"type\":\"card\",\"data\":{\"card_name\":\"制造报表\",\"col\":4}}]",
+ "creation": "2026-05-02 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "tool",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "FWB Manufacturing",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "报工与质量",
+   "link_count": 3,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "FWB Work Report",
+   "link_count": 0,
+   "link_to": "FWB Work Report",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "FWB Work Report",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Rework Record",
+   "link_count": 0,
+   "link_to": "Rework Record",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "FWB Packing Record",
+   "link_count": 0,
+   "link_to": "FWB Packing Record",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "物料齐套",
+   "link_count": 1,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "Work Order",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Material Readiness Check",
+   "link_count": 0,
+   "link_to": "Material Readiness Check",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "工资结算",
+   "link_count": 4,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "FWB Work Report",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Wage Sheet",
+   "link_count": 0,
+   "link_to": "Employee Wage Sheet",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "FWB Work Report",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Employee Wage Summary",
+   "link_count": 0,
+   "link_to": "Employee Wage Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "FWB Work Report",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Employee Wage Sheet Detail",
+   "link_count": 0,
+   "link_to": "Employee Wage Sheet Detail",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "FWB Work Report",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Employee Defect Rate Report",
+   "link_count": 0,
+   "link_to": "Employee Defect Rate Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "制造报表",
+   "link_count": 3,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "FWB Work Report",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Work Report Log",
+   "link_count": 0,
+   "link_to": "Work Report Log",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "BOM",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Process Rate Overview",
+   "link_count": 0,
+   "link_to": "Process Rate Overview",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "FWB Work Report",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Production Total Verification",
+   "link_count": 0,
+   "link_to": "Production Total Verification",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-05-02 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "FWB Manufacturing",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 100.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "工厂总览",
+   "link_to": "factory-control-towe",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "报工录入",
+   "link_to": "FWB Work Report",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "物料齐套",
+   "link_to": "Material Readiness Check",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "工资结算",
+   "link_to": "Employee Wage Sheet",
+   "type": "DocType"
+  }
+ ],
+ "title": "FWB Manufacturing",
+ "type": "Workspace"
+}
