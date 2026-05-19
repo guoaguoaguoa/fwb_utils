@@ -120,18 +120,32 @@ class TestFWBWorkReport(FrappeTestCase):
 		self.assertIn("doc.hourly_rate", rate_script)
 		self.assertIn("custom_piece_rate", rate_script)
 
-	def test_bom_operation_hour_rate_allows_submit_edit(self):
+	def test_bom_hour_rate_cost_fields_allow_submit_edit(self):
 		fixture_path = (
 			Path(__file__).resolve().parents[3]
 			/ "fixtures"
 			/ "property_setter.json"
 		)
 		setters = json.loads(fixture_path.read_text())
-		setter = next(
-			row for row in setters if row["name"] == "BOM Operation-hour_rate-allow_on_submit"
-		)
-		self.assertEqual(setter["property"], "allow_on_submit")
-		self.assertEqual(setter["value"], "1")
+		setters_by_name = {row["name"]: row for row in setters}
+		expected_setters = {
+			"BOM Operation-hour_rate-allow_on_submit",
+			"BOM Operation-base_hour_rate-allow_on_submit",
+			"BOM Operation-operating_cost-allow_on_submit",
+			"BOM Operation-base_operating_cost-allow_on_submit",
+			"BOM Operation-cost_per_unit-allow_on_submit",
+			"BOM Operation-base_cost_per_unit-allow_on_submit",
+			"BOM-operating_cost-allow_on_submit",
+			"BOM-base_operating_cost-allow_on_submit",
+			"BOM-total_cost-allow_on_submit",
+			"BOM-base_total_cost-allow_on_submit",
+		}
+
+		for name in expected_setters:
+			setter = setters_by_name.get(name)
+			self.assertIsNotNone(setter, msg=f"Missing property setter: {name}")
+			self.assertEqual(setter["property"], "allow_on_submit")
+			self.assertEqual(setter["value"], "1")
 
 	def _sql_effective_qty(self, work_report_name):
 		rows = frappe.db.sql(
