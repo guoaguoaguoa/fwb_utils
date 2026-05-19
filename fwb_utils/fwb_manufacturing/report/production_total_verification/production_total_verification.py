@@ -1,8 +1,13 @@
-# v2026.01.10.01 - 生产总数核对报告 (草稿+已提交)
+# v2026.05.18.01 - 生产总数核对报告 (草稿+已提交)
+# - 工作站数量改用集中 effective_qty_sql 口径 (与工资表/各报表统一)
 
 import frappe
 from frappe import _
 from frappe.utils import getdate
+
+from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import (
+    effective_qty_sql,
+)
 
 def execute(filters=None):
     columns = get_columns()
@@ -105,7 +110,11 @@ def get_data(filters):
     # 2. 关联 BOM 获取尺寸
     # 3. 使用 SUM(CASE...) 将行数据(工作站)转置为列数据(本期总数)
     # 4. 额外返回截至筛选结束日的工单工作站累计数，供前端区分历史生产
-    
+    #
+    # 统一有效结算数量口径 (与 Employee Wage Sheet / 其它报表共用同一函数)
+    eff_wr = effective_qty_sql("wr")
+    eff_cum = effective_qty_sql("wr_cumulative")
+
     sql = f"""
         SELECT
             DATE(wo.planned_start_date) as order_date,
@@ -114,12 +123,12 @@ def get_data(filters):
             wo.qty as order_qty,
             
             /* 数据透视：按工作站汇总数量 */
-            SUM(CASE WHEN wr.workstation = '木工房' THEN wr.valid_qty ELSE 0 END) as woodworking_qty,
-            SUM(CASE WHEN wr.workstation = '底漆房' THEN wr.valid_qty ELSE 0 END) as primer_qty,
-            SUM(CASE WHEN wr.workstation = '面漆房' THEN wr.valid_qty ELSE 0 END) as top_coat_qty,
-            SUM(CASE WHEN wr.workstation = '装配区' THEN wr.valid_qty ELSE 0 END) as assembly_qty,
-            SUM(CASE WHEN wr.workstation = '抛光区' THEN wr.valid_qty ELSE 0 END) as polishing_qty,
-            SUM(CASE WHEN wr.workstation = '软包区' THEN wr.valid_qty ELSE 0 END) as lining_qty,
+            SUM(CASE WHEN wr.workstation = '木工房' THEN {eff_wr} ELSE 0 END) as woodworking_qty,
+            SUM(CASE WHEN wr.workstation = '底漆房' THEN {eff_wr} ELSE 0 END) as primer_qty,
+            SUM(CASE WHEN wr.workstation = '面漆房' THEN {eff_wr} ELSE 0 END) as top_coat_qty,
+            SUM(CASE WHEN wr.workstation = '装配区' THEN {eff_wr} ELSE 0 END) as assembly_qty,
+            SUM(CASE WHEN wr.workstation = '抛光区' THEN {eff_wr} ELSE 0 END) as polishing_qty,
+            SUM(CASE WHEN wr.workstation = '软包区' THEN {eff_wr} ELSE 0 END) as lining_qty,
 
             /* 隐藏辅助字段：截至结束日的该工单工作站累计数 */
             MAX(IFNULL(wr_cumulative_totals.woodworking_qty_cumulative, 0)) as woodworking_qty_cumulative,
@@ -143,12 +152,12 @@ def get_data(filters):
         LEFT JOIN (
             SELECT
                 wr_cumulative.work_order,
-                SUM(CASE WHEN wr_cumulative.workstation = '木工房' THEN wr_cumulative.valid_qty ELSE 0 END) as woodworking_qty_cumulative,
-                SUM(CASE WHEN wr_cumulative.workstation = '底漆房' THEN wr_cumulative.valid_qty ELSE 0 END) as primer_qty_cumulative,
-                SUM(CASE WHEN wr_cumulative.workstation = '面漆房' THEN wr_cumulative.valid_qty ELSE 0 END) as top_coat_qty_cumulative,
-                SUM(CASE WHEN wr_cumulative.workstation = '装配区' THEN wr_cumulative.valid_qty ELSE 0 END) as assembly_qty_cumulative,
-                SUM(CASE WHEN wr_cumulative.workstation = '抛光区' THEN wr_cumulative.valid_qty ELSE 0 END) as polishing_qty_cumulative,
-                SUM(CASE WHEN wr_cumulative.workstation = '软包区' THEN wr_cumulative.valid_qty ELSE 0 END) as lining_qty_cumulative
+                SUM(CASE WHEN wr_cumulative.workstation = '木工房' THEN {eff_cum} ELSE 0 END) as woodworking_qty_cumulative,
+                SUM(CASE WHEN wr_cumulative.workstation = '底漆房' THEN {eff_cum} ELSE 0 END) as primer_qty_cumulative,
+                SUM(CASE WHEN wr_cumulative.workstation = '面漆房' THEN {eff_cum} ELSE 0 END) as top_coat_qty_cumulative,
+                SUM(CASE WHEN wr_cumulative.workstation = '装配区' THEN {eff_cum} ELSE 0 END) as assembly_qty_cumulative,
+                SUM(CASE WHEN wr_cumulative.workstation = '抛光区' THEN {eff_cum} ELSE 0 END) as polishing_qty_cumulative,
+                SUM(CASE WHEN wr_cumulative.workstation = '软包区' THEN {eff_cum} ELSE 0 END) as lining_qty_cumulative
             FROM
                 `tabFWB Work Report` wr_cumulative
             WHERE

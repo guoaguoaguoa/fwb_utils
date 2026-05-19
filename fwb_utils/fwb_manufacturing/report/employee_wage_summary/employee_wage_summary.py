@@ -1,11 +1,16 @@
-# v2025.12.09.01 - Employee Wage Summary report backend
+# v2026.05.18.01 - Employee Wage Summary report backend
 # - Add total row for amount / defect_qty / duration / valid_qty
 # - Support employee filter
 # - Add link queries for Employee / Workstation filters in report JS
+# - valid_qty 改用集中 effective_qty_sql 口径 (与 Employee Wage Sheet 完全一致)
 
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import flt
+
+from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import (
+    effective_qty_sql,
+)
 
 
 def execute(filters=None):
@@ -252,6 +257,9 @@ def get_work_reports(filters):
 
     condition_sql = " AND ".join(conditions) if conditions else "1=1"
 
+    # 统一有效结算数量口径 (与 Employee Wage Sheet / 其它报表共用同一函数)
+    eff_qty = effective_qty_sql("wr")
+
     # === 关键优化：使用 LEFT JOIN 一次性取出所有关联单价 ===
     work_reports = frappe.db.sql(
         f"""
@@ -273,7 +281,7 @@ def get_work_reports(filters):
             wr.created_at AS posting_date,
             wr.defect_qty,
             wr.recovered_qty,
-            wr.valid_qty,
+            {eff_qty} AS valid_qty,
             wo.bom_no,
             b.custom_size_l AS size_l,
             b.custom_size_w AS size_w,
@@ -296,13 +304,17 @@ def get_work_reports(filters):
 
 def compute_amount_and_piece_rate(wr):
     """
-    计算逻辑严格对齐 Employee Wage Sheet，但利用 SQL 预取的数据以保证性能。
+    计算逻辑严格对齐 Employee Wage Sheet。
+
+    注意：这里的 ``wr.valid_qty`` 已经不是 FWB Work Report 上可能陈旧的存量值，
+    而是 get_work_reports() 里用集中的 ``effective_qty_sql()`` 实时重算后的
+    “有效结算数量”，口径与 Employee Wage Sheet、其它报表完全一致。
     """
     qty = flt(wr.qty or 0)
     defect_qty = flt(wr.defect_qty or 0)
     recovered_qty = flt(wr.recovered_qty or 0)
-    
-    # 统一使用 valid_qty 作为计算基数 (与工资表一致)
+
+    # valid_qty 来自 effective_qty_sql 重算结果 (与 Employee Wage Sheet 同一口径)
     valid_qty = flt(
         wr.valid_qty if wr.valid_qty is not None else (qty - defect_qty + recovered_qty)
     )

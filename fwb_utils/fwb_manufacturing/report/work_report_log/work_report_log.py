@@ -1,8 +1,13 @@
-# v2026.05.05.01 - 工人/管理双视图报工记录
+# v2026.05.18.01 - 工人/管理双视图报工记录
+# - valid_qty / 金额 改用集中 effective_qty_sql 口径 (与工资表/各报表统一)
 
 import frappe
 from frappe import _
 from frappe.utils import flt
+
+from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import (
+    effective_qty_sql,
+)
 
 
 MANAGER_VIEW_ROLES = (
@@ -141,19 +146,22 @@ def get_data(filters):
     params.update(scope_params)
     params.update(condition_params)
     where_sql = " AND ".join(where_clauses)
-    
+
+    # 统一有效结算数量口径 (与 Employee Wage Sheet / 其它报表共用同一函数)
+    eff_qty = effective_qty_sql("wr")
+
     # 2. 核心 SQL 查询
     sql = f"""
         SELECT
             DATE_FORMAT(wr.created_at, '%%m-%%d') as report_date,
-            
-            wr.name as report_num, 
-            
+
+            wr.name as report_num,
+
             wr.work_order,
             COALESCE(wo.item_name, wo.production_item) as product_name,
             wr.wage_type,
             CASE WHEN wr.rework_type = '否' THEN '' ELSE wr.rework_type END as rework_type,
-            wr.valid_qty as produce_qty,
+            {eff_qty} as produce_qty,
             
             /* ========== 单价优先级逻辑 ========== */
             CASE 
@@ -193,11 +201,11 @@ def get_data(filters):
 
                 /* 有偿返工: 报工 rework_rate */
                 WHEN wr.rework_type = '有偿返工' AND IFNULL(wr.rework_rate, 0) > 0 THEN
-                    IFNULL(wr.valid_qty, 0) * wr.rework_rate
+                    {eff_qty} * wr.rework_rate
 
                 /* 普通计件 / 无偿返工: BOM custom_piece_rate -> 报工 custom_piece_rate */
                 ELSE
-                    IFNULL(wr.valid_qty, 0) *
+                    {eff_qty} *
                     CASE
                         WHEN IFNULL(bom_op.custom_piece_rate, 0) > 0 THEN bom_op.custom_piece_rate
                         ELSE IFNULL(wr.custom_piece_rate, 0)

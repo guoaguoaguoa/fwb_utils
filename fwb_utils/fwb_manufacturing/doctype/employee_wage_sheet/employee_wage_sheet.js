@@ -22,13 +22,10 @@ function inject_wage_sheet_css() {
         }
 
         /* highlight penalty rows (Red) */
-        .penalty-wage-row [data-fieldname="product_name"] {
-            color: red !important;
-            font-weight: bold !important;
-        }
-        .penalty-wage-row [data-fieldname="product_name"] div {
-            color: red !important;
-            font-weight: bold !important;
+        .penalty-wage-row .grid-static-col,
+        .penalty-wage-row .grid-static-col * {
+            color: #c62828 !important;
+            font-weight: 700 !important;
         }
 
         /* top buttons: force visible colors */
@@ -133,12 +130,51 @@ function refresh_grid_row_styles(frm) {
     });
 }
 
+function schedule_grid_row_style_refresh(frm) {
+    if (!frm || !frm.fields_dict["details"]) return;
+
+    if (frm._wage_sheet_style_timer) {
+        clearTimeout(frm._wage_sheet_style_timer);
+    }
+
+    frm._wage_sheet_style_timer = setTimeout(() => {
+        refresh_grid_row_styles(frm);
+    }, 80);
+}
+
+function setup_grid_style_refresh(frm) {
+    if (!frm.fields_dict["details"] || !frm.fields_dict["details"].grid) return;
+
+    const grid = frm.fields_dict["details"].grid;
+
+    if (!grid._fwb_wage_style_refresh_patched && typeof grid.refresh === "function") {
+        const original_refresh = grid.refresh.bind(grid);
+        grid.refresh = function () {
+            const result = original_refresh(...arguments);
+            schedule_grid_row_style_refresh(frm);
+            return result;
+        };
+        grid._fwb_wage_style_refresh_patched = true;
+    }
+
+    const $wrapper = grid.wrapper ? $(grid.wrapper) : $();
+    if ($wrapper.length && !frm._wage_sheet_grid_style_events_bound) {
+        frm._wage_sheet_grid_style_events_bound = true;
+        $wrapper.on(
+            "click.fwb_wage_styles change.fwb_wage_styles",
+            ".grid-pagination button, .grid-pagination select, .pagination button, .btn-paging, .grid-page",
+            () => schedule_grid_row_style_refresh(frm)
+        );
+    }
+}
+
 // === Parent DocType: Employee Wage Sheet ===
 frappe.ui.form.on("Employee Wage Sheet", {
     refresh(frm) {
         inject_wage_sheet_css();
         recompute_totals(frm);
-        refresh_grid_row_styles(frm);
+        setup_grid_style_refresh(frm);
+        schedule_grid_row_style_refresh(frm);
 
         if (frm.is_new()) {
             return;
@@ -170,12 +206,17 @@ frappe.ui.form.on("Employee Wage Sheet", {
 
                             if (r && r.message) {
                                 const rows = r.message.rows || 0;
+                                const manual_rows = r.message.manual_rows || 0;
+                                const generated_rows = r.message.generated_rows || 0;
                                 const qty = frappe.format(r.message.total_qty || 0, { fieldtype: "Float" });
                                 const amt = frappe.format(r.message.total_amount || 0, { fieldtype: "Currency" });
+                                const manual_msg = manual_rows
+                                    ? `<br>已保留手工录入 <b>${manual_rows}</b> 行，重新生成 <b>${generated_rows}</b> 行。`
+                                    : "";
 
                                 frappe.msgprint({
                                     title: "已更新明细",
-                                    message: `本次共汇总 <b>${rows}</b> 行明细，合计数量 <b>${qty}</b>，合计金额 <b>${amt}</b>。`,
+                                    message: `当前共有 <b>${rows}</b> 行明细，合计数量 <b>${qty}</b>，合计金额 <b>${amt}</b>。${manual_msg}`,
                                     indicator: "green"
                                 });
 
@@ -277,16 +318,16 @@ frappe.ui.form.on("Employee Wage Sheet Detail", {
         const row = locals[cdt][cdn];
         recompute_row_amount(row);
         recompute_totals(frm);
-        refresh_grid_row_styles(frm);
         frm.refresh_field("details");
+        schedule_grid_row_style_refresh(frm);
     },
 
     rate(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
         recompute_row_amount(row);
         recompute_totals(frm);
-        refresh_grid_row_styles(frm);
         frm.refresh_field("details");
+        schedule_grid_row_style_refresh(frm);
     },
 
     duration_seconds(frm, cdt, cdn) {
@@ -297,25 +338,25 @@ frappe.ui.form.on("Employee Wage Sheet Detail", {
         recompute_row_amount(row);
         recompute_totals(frm);
         frm.refresh_field("details");
-        refresh_grid_row_styles(frm);
+        schedule_grid_row_style_refresh(frm);
     },
 
     amount(frm, cdt, cdn) {
         // manual override
         recompute_totals(frm);
-        refresh_grid_row_styles(frm);
         frm.refresh_field("details");
+        schedule_grid_row_style_refresh(frm);
     },
 
     details_add(frm, cdt, cdn) {
         recompute_totals(frm);
-        refresh_grid_row_styles(frm);
         frm.refresh_field("details");
+        schedule_grid_row_style_refresh(frm);
     },
 
     details_remove(frm, cdt, cdn) {
         recompute_totals(frm);
-        refresh_grid_row_styles(frm);
         frm.refresh_field("details");
+        schedule_grid_row_style_refresh(frm);
     }
 });

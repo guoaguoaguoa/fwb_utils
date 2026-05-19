@@ -12,11 +12,16 @@
 # - Filter: product_name fuzzy search via Work Order.item_name / FWB Work Report.product_name
 # - New: append a total row (sum of qtys + weighted defect_rate) at bottom
 # - New: employee_for_workstation link query for dependent employee filter
+# - 2026-05: total_valid_qty 参考列改用集中 effective_qty_sql 口径 (与工资表一致)
 
 from __future__ import unicode_literals
 
 import frappe
 from frappe.utils import flt
+
+from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import (
+    effective_qty_sql,
+)
 
 
 def execute(filters=None):
@@ -132,6 +137,9 @@ def get_data(filters):
     if where_clauses:
         where_sql = "WHERE " + " AND ".join(where_clauses)
 
+    # 统一有效结算数量口径 (与 Employee Wage Sheet / 其它报表共用同一函数)
+    eff_qty = effective_qty_sql("w")
+
     # total_defect_qty deliberately aggregates Rework Record.defective_qty only.
     # Do not replace it with penalty_qty, and do not subtract reworked_qty here.
     sql = f"""
@@ -142,7 +150,7 @@ def get_data(filters):
                                                     AS product_name,
             w.work_order                              AS work_order,
             w.workstation                             AS workstation,
-            SUM(IFNULL(w.valid_qty, 0))               AS total_valid_qty,
+            SUM({eff_qty})                            AS total_valid_qty,
             SUM(IFNULL(w.qty, 0))                     AS total_qty,
             IFNULL(SUM(IFNULL(r_agg.total_defective_qty, 0)), 0)
                                                     AS total_defect_qty

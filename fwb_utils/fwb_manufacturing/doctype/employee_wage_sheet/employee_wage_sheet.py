@@ -12,6 +12,31 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt, cint, getdate
 
+from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import (
+    calculate_effective_qty,
+    effective_qty_sql,
+    get_total_quality_inspected,
+)
+
+DETAIL_FIELDS_TO_COPY = (
+    "source_work_report",
+    "work_order",
+    "product_name",
+    "size_l",
+    "size_w",
+    "size_h",
+    "workstation",
+    "qty",
+    "rate",
+    "duration_display",
+    "amount",
+    "defect_qty",
+    "defect_rate",
+    "remarks",
+    "duration_seconds",
+    "is_penalty",
+)
+
 
 class EmployeeWageSheet(Document):
     """Main DocType class."""
@@ -73,8 +98,13 @@ def generate_wage_details(wage_sheet_name: str):
         if emp_name:
             ws.employee_name = emp_name
 
-    # Clear existing detail rows
+    preserved_rows = _get_preserved_manual_rows(ws)
+
+    # Clear existing detail rows, then keep manual rows at the top.
     ws.set("details", [])
+    for row in preserved_rows:
+        child = ws.append("details", {})
+        _copy_detail_values(child, row)
 
     rows = _collect_aggregated_rows(
         employee=ws.employee,
@@ -133,9 +163,39 @@ def generate_wage_details(wage_sheet_name: str):
 
     return {
         "rows": len(ws.details or []),
+        "manual_rows": len(preserved_rows),
+        "generated_rows": len(ws.details or []) - len(preserved_rows),
         "total_qty": total_qty,
         "total_amount": total_amount,
     }
+
+
+def _get_preserved_manual_rows(ws):
+    """Return existing child rows that should survive regeneration."""
+    preserved = []
+
+    for row in ws.details or []:
+        if not _should_preserve_detail_row(row):
+            continue
+
+        row_data = {}
+        for fieldname in DETAIL_FIELDS_TO_COPY:
+            row_data[fieldname] = row.get(fieldname)
+
+        preserved.append(row_data)
+
+    return preserved
+
+
+def _should_preserve_detail_row(row):
+    """Manual rows are rows that are not linked to a Work Report."""
+    return not row.get("source_work_report")
+
+
+def _copy_detail_values(child, row_data):
+    for fieldname in DETAIL_FIELDS_TO_COPY:
+        if child.meta.get_field(fieldname):
+            child.set(fieldname, row_data.get(fieldname))
 
 
 def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
@@ -147,14 +207,21 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
     - 一条报工 = 一条工资明细
     - rate 由单行报工 + BOM 决定（不做平均）
     """
-    sql = """
+    # 纳入筛选也用集中的“有效结算数量”口径，而不是可能陈旧的存量 valid_qty。
+    # 否则历史/损坏单存量 valid_qty 错成 0、但按已质检总数应 > 0 时，
+    # 会在这里被静默排除，导致工人少结算（无任何报错）。
+    eff_sql = effective_qty_sql("w")
+
+    sql = f"""
         SELECT
             w.name                AS work_report,
             w.work_order,
             w.workstation,
             w.wage_type,
+            IFNULL(w.qty, 0)             AS qty,
             IFNULL(w.valid_qty, 0)       AS valid_qty,
             IFNULL(w.defect_qty, 0)      AS defect_qty,
+            IFNULL(w.recovered_qty, 0)   AS recovered_qty,
             IFNULL(w.duration, 0)        AS duration_seconds,
             w.product_name,
             w.hourly_rate,
@@ -168,7 +235,7 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
             AND DATE(w.created_at) >= %(from_date)s
             AND DATE(w.created_at) <= %(to_date)s
             AND (
-                IFNULL(w.valid_qty, 0) > 0
+                {eff_sql} > 0
                 OR (w.wage_type = '计时' AND IFNULL(w.duration, 0) > 0)
             )
         ORDER BY w.created_at, w.name
@@ -224,7 +291,19 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
                         size_w = bom.custom_size_w or ""
                         size_h = bom.custom_size_h or ""
 
-        total_valid_qty = flt(row.valid_qty or 0)
+        # 不信任报工单上可能陈旧的 valid_qty：在生成明细时按新口径实时重算。
+        # 规则与 FWB Work Report 一致：若该报工有已提交质检记录，则用
+        # Rework Record.total_quality_inspected 作为基数，否则用报工总数 qty。
+        # 这样“从报工生成明细”本身就是一次重算触发，无需回填报工单原始数据。
+        total_quality_inspected = get_total_quality_inspected(row.work_report)
+        total_valid_qty = flt(
+            calculate_effective_qty(
+                qty=row.qty,
+                defect_qty=row.defect_qty,
+                recovered_qty=row.recovered_qty,
+                total_quality_inspected=total_quality_inspected,
+            )
+        )
         total_defect_qty = flt(row.defect_qty or 0)
 
         # 计时单：只在 wage_type = '计时' 时，把 duration 写进去，否则按 0 处理

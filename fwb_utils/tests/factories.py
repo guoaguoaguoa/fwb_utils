@@ -21,10 +21,22 @@ def ensure_test_employment_type(employee_type_name="Intern"):
 	return employee_type_name
 
 
+def get_existing_company(company=None):
+	if company and frappe.db.exists("Company", company):
+		return company
+
+	return (
+		frappe.defaults.get_global_default("company")
+		or frappe.db.get_value("Company", {}, "name")
+		or company
+	)
+
+
 def ensure_test_employee(user_email, employee_name=None, **kwargs):
 	ensure_test_employment_type(kwargs.get("employment_type", "Intern"))
 	if employee_name:
 		kwargs.setdefault("first_name", employee_name)
+	kwargs["company"] = get_existing_company(kwargs.get("company", "_Test Company"))
 
 	existing_employee = frappe.db.get_value("Employee", {"user_id": user_email}, "name")
 	if existing_employee:
@@ -36,7 +48,7 @@ def ensure_test_employee(user_email, employee_name=None, **kwargs):
 
 	employee = make_employee(
 		user_email,
-		company=kwargs.pop("company", "_Test Company"),
+		company=kwargs.pop("company"),
 		**kwargs,
 	)
 	return frappe.get_doc("Employee", employee)
@@ -57,12 +69,14 @@ def make_fwb_work_report(
 	rework_type="否",
 	defect_qty=0,
 	recovered_qty=0,
+	total_quality_inspected=0,
 	valid_qty=None,
 	total_amount=None,
 	created_at=None,
 ):
 	created_at = created_at or now_datetime()
-	valid_qty = flt(qty) - flt(defect_qty) + flt(recovered_qty) if valid_qty is None else flt(valid_qty)
+	base_qty = flt(total_quality_inspected) if flt(total_quality_inspected) > 0 else flt(qty)
+	valid_qty = base_qty - flt(defect_qty) + flt(recovered_qty) if valid_qty is None else flt(valid_qty)
 
 	if total_amount is None:
 		if wage_type == "计时":

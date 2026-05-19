@@ -4,8 +4,9 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt
 
+
 class FWBWorkReport(Document):
-        pass
+    pass
 
 
 @frappe.whitelist()
@@ -17,6 +18,101 @@ def get_bom_hour_rate(work_order=None, workstation=None):
     usually don't have read permission on that child table.
     """
     return _get_bom_hour_rate_info(work_order, workstation)
+
+
+def calculate_effective_qty(qty, defect_qty=0, recovered_qty=0, total_quality_inspected=0):
+    """Return settlement qty using inspected qty as base once QC exists."""
+    inspected_qty = flt(total_quality_inspected or 0)
+    base_qty = inspected_qty if inspected_qty > 0 else flt(qty or 0)
+    return base_qty - flt(defect_qty or 0) + flt(recovered_qty or 0)
+
+
+def get_total_quality_inspected(from_work_report, excluded_rework_record=None):
+    """Read the submitted QC total stored on Rework Record."""
+    if not from_work_report:
+        return 0.0
+
+    params = [from_work_report]
+    excluded_sql = ""
+    if excluded_rework_record:
+        excluded_sql = " AND name != %s"
+        params.append(excluded_rework_record)
+
+    total_quality_inspected = (
+        frappe.db.sql(
+            f"""
+            SELECT MAX(IFNULL(total_quality_inspected, 0))
+            FROM `tabRework Record`
+            WHERE from_work_report = %s
+              AND docstatus = 1
+              {excluded_sql}
+            """,
+            tuple(params),
+        )[0][0]
+        or 0
+    )
+    return flt(total_quality_inspected)
+
+
+def effective_qty_sql(alias="wr"):
+    """
+    Return a SQL scalar expression (string) for the *effective settlement qty*
+    of one FWB Work Report row, kept formula-equivalent to
+    ``calculate_effective_qty``.
+
+    Rule (single source of truth, shared by all reports + wage sheet):
+      base = MAX(submitted Rework Record.total_quality_inspected) if > 0
+             else <alias>.qty
+      effective = base - <alias>.defect_qty + <alias>.recovered_qty
+
+    ``NULLIF(..., 0)`` + ``COALESCE`` makes the correlated subquery evaluate
+    once and fall back to qty when there is no submitted QC total.
+
+    Args:
+        alias: table alias of `tabFWB Work Report` in the caller's query.
+
+    Returns:
+        str: a parenthesised SQL expression safe to drop into SELECT / SUM().
+    """
+    a = alias
+    return f"""(
+        COALESCE(
+            NULLIF(
+                (
+                    SELECT MAX(IFNULL(rr_eq.total_quality_inspected, 0))
+                    FROM `tabRework Record` rr_eq
+                    WHERE rr_eq.from_work_report = {a}.name
+                      AND rr_eq.docstatus = 1
+                ),
+                0
+            ),
+            IFNULL({a}.qty, 0)
+        )
+        - IFNULL({a}.defect_qty, 0)
+        + IFNULL({a}.recovered_qty, 0)
+    )"""
+
+
+def apply_quality_totals_to_work_report(target_doc, excluded_rework_record=None):
+    """
+    Sync settlement qty on an FWB Work Report document.
+
+    If Rework Record has a submitted total_quality_inspected value, valid_qty is
+    based on that total instead of the worker-entered production qty.
+    """
+    total_quality_inspected = get_total_quality_inspected(
+        target_doc.name,
+        excluded_rework_record=excluded_rework_record,
+    )
+
+    target_doc.valid_qty = calculate_effective_qty(
+        qty=target_doc.qty,
+        defect_qty=target_doc.defect_qty,
+        recovered_qty=target_doc.recovered_qty,
+        total_quality_inspected=total_quality_inspected,
+    )
+    return total_quality_inspected
+
 
 @frappe.whitelist()
 def get_production_employee_query(doctype, txt, searchfield, start, page_len, filters):

@@ -1,6 +1,12 @@
 ### FWB Utils
 
-QR utilities toolkit
+ERPNext/Frappe manufacturing extension for FWB workshop reporting, QC/rework
+feedback, material readiness checks, piece/time wage settlement, and related
+manufacturing reports.
+
+The canonical business logic notes live in:
+
+- `../../docs/fwb_utils设计逻辑分析.md`
 
 ### Installation
 

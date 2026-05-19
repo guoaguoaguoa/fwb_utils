@@ -3,7 +3,7 @@ name = "fwb_utils"
 authors = [
     { name = "WenZhou Furui Handicraft Co.,Ltd.", email = "tech@freewoodenbox.com"}
 ]
-description = "QR utilities toolkit"
+description = "ERPNext manufacturing reporting, QC, and wage settlement extensions"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]

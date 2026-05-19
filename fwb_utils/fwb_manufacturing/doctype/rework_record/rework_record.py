@@ -7,6 +7,10 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import (
+	apply_quality_totals_to_work_report,
+)
+
 
 class ReworkRecord(Document):
 	def apply_submitted_rework_record(self):
@@ -86,6 +90,7 @@ def apply_submitted_rework_record(doc_or_name):
 	defective_qty = flt(doc.defective_qty)
 	reworked_qty = flt(doc.reworked_qty)
 	is_changed = False
+	old_valid_qty = flt(target_doc.valid_qty or 0)
 
 	if action == "次品扣除" and defective_qty > 0:
 		target_doc.defect_qty = flt(target_doc.defect_qty) + defective_qty
@@ -94,8 +99,14 @@ def apply_submitted_rework_record(doc_or_name):
 		target_doc.recovered_qty = flt(target_doc.recovered_qty) + reworked_qty
 		is_changed = True
 
-	if is_changed:
-		target_doc.valid_qty = flt(target_doc.qty) - flt(target_doc.defect_qty) + flt(target_doc.recovered_qty)
+	total_quality_inspected = _sync_total_quality_inspected(doc.from_work_report)
+	apply_quality_totals_to_work_report(target_doc)
+	needs_save = (
+		is_changed
+		or flt(target_doc.valid_qty or 0) != old_valid_qty
+	)
+
+	if needs_save:
 		_recalculate_work_report_amount(target_doc)
 		target_doc.flags.ignore_validate_update_after_submit = True
 		target_doc.save(ignore_permissions=True)
@@ -104,7 +115,6 @@ def apply_submitted_rework_record(doc_or_name):
 			f"✅ 已同步更新生产报工单：\n质检扣除: {target_doc.defect_qty}\n返工回补: {target_doc.recovered_qty}\n有效数量: {target_doc.valid_qty}"
 		)
 
-	total_quality_inspected = _sync_total_quality_inspected(doc.from_work_report)
 	frappe.db.set_value(
 		"Rework Record",
 		doc.name,
@@ -125,6 +135,7 @@ def rollback_cancelled_rework_record(doc_or_name):
 	defective_qty = flt(doc.defective_qty)
 	reworked_qty = flt(doc.reworked_qty)
 	is_changed = False
+	old_valid_qty = flt(target_doc.valid_qty or 0)
 
 	if action == "次品扣除" and defective_qty > 0:
 		target_doc.defect_qty = max(0, flt(target_doc.defect_qty) - defective_qty)
@@ -133,15 +144,29 @@ def rollback_cancelled_rework_record(doc_or_name):
 		target_doc.recovered_qty = max(0, flt(target_doc.recovered_qty) - reworked_qty)
 		is_changed = True
 
-	if is_changed:
-		target_doc.valid_qty = flt(target_doc.qty) - flt(target_doc.defect_qty) + flt(target_doc.recovered_qty)
+	_sync_total_quality_inspected(doc.from_work_report, excluded_name=doc.name)
+	apply_quality_totals_to_work_report(target_doc, excluded_rework_record=doc.name)
+	needs_save = (
+		is_changed
+		or flt(target_doc.valid_qty or 0) != old_valid_qty
+	)
+
+	if needs_save:
 		_recalculate_work_report_amount(target_doc)
-		target_doc.flags.ignore_validate_update_after_submit = True
-		target_doc.save(ignore_permissions=True)
+		frappe.db.set_value(
+			"FWB Work Report",
+			target_doc.name,
+			{
+				"defect_qty": target_doc.defect_qty,
+				"recovered_qty": target_doc.recovered_qty,
+				"valid_qty": target_doc.valid_qty,
+				"total_amount": target_doc.total_amount,
+			},
+			update_modified=False,
+		)
 
 		frappe.msgprint(f"✅ 已回滚生产报工单数据，当前金额：{target_doc.total_amount}")
 
-	_sync_total_quality_inspected(doc.from_work_report, excluded_name=doc.name)
 
 
 @frappe.whitelist()

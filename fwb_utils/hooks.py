@@ -1,7 +1,7 @@
 app_name = "fwb_utils"
 app_title = "FWB Utils"
 app_publisher = "WenZhou Furui Handicraft Co.,Ltd."
-app_description = "Utility functions for QR generation"
+app_description = "ERPNext manufacturing reporting, QC, and wage settlement extensions"
 app_email = "tech@freewoodenbox.com"
 app_license = "MIT"
 

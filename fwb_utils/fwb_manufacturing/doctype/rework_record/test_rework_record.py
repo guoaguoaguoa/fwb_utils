@@ -150,8 +150,8 @@ class TestReworkRecord(FrappeTestCase):
 
 		self._assert_numeric_equal(report.defect_qty, 8)
 		self._assert_numeric_equal(report.recovered_qty, 0)
-		self._assert_numeric_equal(report.valid_qty, 92)
-		self._assert_numeric_equal(report.total_amount, 184)
+		self._assert_numeric_equal(report.valid_qty, 4)
+		self._assert_numeric_equal(report.total_amount, 8)
 		self._assert_numeric_equal(record.total_quality_inspected, 12)
 
 	def test_apply_submitted_rework_record_keeps_paid_rework_amount_rule(self):
@@ -176,8 +176,8 @@ class TestReworkRecord(FrappeTestCase):
 
 		report.reload()
 
-		self._assert_numeric_equal(report.valid_qty, 95)
-		self._assert_numeric_equal(report.total_amount, 76)
+		self._assert_numeric_equal(report.valid_qty, 5)
+		self._assert_numeric_equal(report.total_amount, 4)
 
 	def test_rollback_cancelled_rework_record_restores_report_and_history(self):
 		report = make_fwb_work_report(
@@ -210,8 +210,8 @@ class TestReworkRecord(FrappeTestCase):
 
 		report.reload()
 		self._assert_numeric_equal(report.defect_qty, 8)
-		self._assert_numeric_equal(report.valid_qty, 92)
-		self._assert_numeric_equal(report.total_amount, 184)
+		self._assert_numeric_equal(report.valid_qty, 13)
+		self._assert_numeric_equal(report.total_amount, 26)
 
 		rollback_cancelled_rework_record(second.name)
 		self._set_rework_docstatus(second, 2, "2026-03-01 11:00:00")
@@ -220,8 +220,8 @@ class TestReworkRecord(FrappeTestCase):
 		first.reload()
 
 		self._assert_numeric_equal(report.defect_qty, 5)
-		self._assert_numeric_equal(report.valid_qty, 95)
-		self._assert_numeric_equal(report.total_amount, 190)
+		self._assert_numeric_equal(report.valid_qty, 7)
+		self._assert_numeric_equal(report.total_amount, 14)
 		self._assert_numeric_equal(first.total_quality_inspected, 12)
 
 		summary = get_rework_history_summary(report.name)
@@ -254,8 +254,8 @@ class TestReworkRecord(FrappeTestCase):
 		safe_exec(after_submit_script, _locals={"doc": record}, restrict_commit_rollback=True)
 		report.reload()
 		self._assert_numeric_equal(report.defect_qty, 4)
-		self._assert_numeric_equal(report.valid_qty, 96)
-		self._assert_numeric_equal(report.total_amount, 192)
+		self._assert_numeric_equal(report.valid_qty, 8)
+		self._assert_numeric_equal(report.total_amount, 16)
 
 		safe_exec(before_cancel_script, _locals={"doc": record}, restrict_commit_rollback=True)
 		report.reload()
