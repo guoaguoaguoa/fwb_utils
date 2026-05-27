@@ -13,6 +13,7 @@
   "from_date",
   "to_date",
   "total_qty",
+  "total_duration_seconds",
   "total_amount",
   "status",
   "remarks",
@@ -63,6 +64,12 @@
    "fieldname": "total_qty",
    "fieldtype": "Int",
    "label": "\u603b\u6709\u6548\u6570\u91cf"
+  },
+  {
+   "fieldname": "total_duration_seconds",
+   "fieldtype": "Duration",
+   "label": "\u603b\u7528\u5de5\u65f6",
+   "read_only": 1
   },
   {
    "columns": 2,

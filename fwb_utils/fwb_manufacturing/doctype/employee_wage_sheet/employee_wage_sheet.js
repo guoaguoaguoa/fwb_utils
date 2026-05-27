@@ -85,9 +85,11 @@ function recompute_row_amount(row) {
 function recompute_totals(frm) {
     let total_qty = 0.0;
     let total_amount = 0.0;
+    let total_duration_seconds = 0;
 
     (frm.doc.details || []).forEach(row => {
         total_qty += flt(row.qty || 0);
+        total_duration_seconds += cint(row.duration_seconds || 0);
 
         // Handle penalty deduction in JS preview too
         if (cint(row.is_penalty) === 1) {
@@ -99,6 +101,7 @@ function recompute_totals(frm) {
 
     frm.set_value("total_qty", total_qty);
     frm.set_value("total_amount", total_amount);
+    frm.set_value("total_duration_seconds", total_duration_seconds);
 }
 
 // === Helper: refresh styles on grid rows ===

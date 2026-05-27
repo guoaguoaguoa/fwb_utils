@@ -55,6 +55,14 @@ class EmployeeWageSheet(Document):
         if self.docstatus == 0 and not self.status:
             self.status = "草稿"
 
+        # Always keep 总用工时 in sync with manually edited detail rows;
+        # generate_wage_details sets it for system-generated rows, but a user
+        # who edits child duration_seconds and saves should still see the
+        # parent total update without going through the regenerate button.
+        self.total_duration_seconds = sum(
+            cint(d.duration_seconds or 0) for d in (self.details or [])
+        )
+
     def on_submit(self):
         # when submitted, mark as "已确认" unless already "已生成工资单"
         if self.status != "已生成工资单":
@@ -144,9 +152,11 @@ def generate_wage_details(wage_sheet_name: str):
     # Recompute parent totals
     total_qty = 0.0
     total_amount = 0.0
+    total_duration_seconds = 0
 
     for d in ws.details:
         total_qty += flt(d.qty or 0)
+        total_duration_seconds += cint(d.duration_seconds or 0)
         if d.is_penalty:
             total_amount -= flt(d.amount or 0)
         else:
@@ -154,6 +164,7 @@ def generate_wage_details(wage_sheet_name: str):
 
     ws.total_qty = total_qty
     ws.total_amount = total_amount
+    ws.total_duration_seconds = total_duration_seconds
 
     # keep status in "草稿" while editing if it is some strange value
     if ws.docstatus == 0 and ws.status not in ("草稿", "已确认", "已生成工资单"):
@@ -167,6 +178,7 @@ def generate_wage_details(wage_sheet_name: str):
         "generated_rows": len(ws.details or []) - len(preserved_rows),
         "total_qty": total_qty,
         "total_amount": total_amount,
+        "total_duration_seconds": total_duration_seconds,
     }
 
 

@@ -249,3 +249,146 @@ class TestEmployeeWageSheet(FrappeTestCase):
 		target = [r for r in rows if r.get("work_report") == wr.name]
 
 		self.assertEqual(len(target), 0)
+
+	def test_total_duration_seconds_field_on_parent(self):
+		"""Schema regression: 总用工时 must live on Employee Wage Sheet itself
+		so it can be displayed and reused on payroll docs/reports."""
+		meta = frappe.get_meta("Employee Wage Sheet")
+		field = meta.get_field("total_duration_seconds")
+		self.assertIsNotNone(
+			field,
+			"Employee Wage Sheet must define 'total_duration_seconds' field",
+		)
+		self.assertEqual(field.fieldtype, "Duration")
+		self.assertEqual(field.read_only, 1)
+
+	def test_validate_recomputes_total_duration_from_manual_rows(self):
+		"""手工录入计时明细后保存，total_duration_seconds 必须按当前子表
+		即时重算，不依赖『从报工生成明细』按钮。"""
+		employee = ensure_test_employee(
+			"wage-duration-manual@example.com", employee_name="Wage Duration"
+		)
+
+		ws = frappe.get_doc(
+			{
+				"doctype": "Employee Wage Sheet",
+				"employee": employee.name,
+				"employee_name": employee.employee_name,
+				"from_date": "2026-05-01",
+				"to_date": "2026-05-31",
+				"details": [
+					{
+						"product_name": "手工计时-A",
+						"qty": 0,
+						"rate": 30,
+						"duration_seconds": 3600,
+						"amount": 30,
+					},
+					{
+						"product_name": "手工计时-B",
+						"qty": 0,
+						"rate": 30,
+						"duration_seconds": 5400,
+						"amount": 45,
+					},
+				],
+			}
+		).insert(ignore_permissions=True)
+
+		ws.reload()
+		self.assertEqual(ws.total_duration_seconds, 9000)
+
+		# Edit one detail's duration and re-save: total must follow immediately.
+		ws.details[1].duration_seconds = 1800
+		ws.save(ignore_permissions=True)
+		ws.reload()
+		self.assertEqual(ws.total_duration_seconds, 5400)
+
+		# Adding a brand-new manual row also flows through validate().
+		ws.append(
+			"details",
+			{
+				"product_name": "手工计时-C",
+				"qty": 0,
+				"rate": 30,
+				"duration_seconds": 7200,
+				"amount": 60,
+			},
+		)
+		ws.save(ignore_permissions=True)
+		ws.reload()
+		self.assertEqual(ws.total_duration_seconds, 12600)
+
+	def test_generate_wage_details_sets_total_duration_seconds(self):
+		"""『从报工生成明细』必须把子表 duration_seconds 汇总到
+		parent.total_duration_seconds，并在返回 payload 中带出。"""
+		employee = ensure_test_employee(
+			"wage-duration-generate@example.com", employee_name="Wage Gen Duration"
+		)
+		workstation = ensure_test_workstation("Test Wage Duration Station")
+
+		wr_a = make_fwb_work_report(
+			employee=employee.name,
+			workstation=workstation.name,
+			qty=5,
+		)
+		wr_b = make_fwb_work_report(
+			employee=employee.name,
+			workstation=workstation.name,
+			qty=5,
+		)
+
+		ws = frappe.get_doc(
+			{
+				"doctype": "Employee Wage Sheet",
+				"employee": employee.name,
+				"employee_name": employee.employee_name,
+				"from_date": "2026-04-01",
+				"to_date": "2026-04-30",
+			}
+		).insert(ignore_permissions=True)
+
+		generated_rows = [
+			frappe._dict(
+				{
+					"work_report": wr_a.name,
+					"work_order": None,
+					"workstation": workstation.name,
+					"product_name": "计时-A",
+					"size_l": "",
+					"size_w": "",
+					"size_h": "",
+					"total_valid_qty": 0,
+					"total_defect_qty": 0,
+					"defect_rate": 0,
+					"total_duration_seconds": 3600,
+					"rate": 30,
+				}
+			),
+			frappe._dict(
+				{
+					"work_report": wr_b.name,
+					"work_order": None,
+					"workstation": workstation.name,
+					"product_name": "计时-B",
+					"size_l": "",
+					"size_w": "",
+					"size_h": "",
+					"total_valid_qty": 0,
+					"total_defect_qty": 0,
+					"defect_rate": 0,
+					"total_duration_seconds": 1800,
+					"rate": 30,
+				}
+			),
+		]
+
+		with patch(
+			"fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet._collect_aggregated_rows",
+			return_value=generated_rows,
+		):
+			result = generate_wage_details(ws.name)
+
+		ws.reload()
+		self.assertEqual(result["total_duration_seconds"], 5400)
+		self.assertEqual(ws.total_duration_seconds, 5400)
