@@ -9,7 +9,11 @@ doc_events = {
     "Work Order": {
         "on_submit": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_submit",
         "on_cancel": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_cancel",
-    }
+    },
+    # 加班自动结算：工资单 validate 时按考勤(custom_overtime_days)算加班金额写「加班」行
+    "Salary Slip": {
+        "validate": "fwb_utils.fwb_manufacturing.dingtalk_attendance.apply_overtime_to_salary_slip",
+    },
 }
 
 scheduler_events = {
@@ -81,11 +85,12 @@ fixtures = [
   #  },
 
     # 6) 自定义字段：BOM / Employee / Work Order / Salary Slip / BOM Operation
+    #    + Salary Structure Assignment（工龄/等级/证书/宿舍租金 基数，喂底薪同款考勤公式，分行随考勤）
     #    这里就把你盘点清单里提到的那几个都一网打尽
     {
         "doctype": "Custom Field",
         "filters": [
-            ["dt", "in", ["BOM", "Employee", "Work Order", "Salary Slip", "BOM Operation"]],
+            ["dt", "in", ["BOM", "Employee", "Work Order", "Salary Slip", "BOM Operation", "Salary Structure Assignment", "Attendance"]],
         ],
     },
 

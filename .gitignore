@@ -6,3 +6,11 @@ fwb_utils/tests/test_server_script_fixtures.py
 fwb_utils/translations/zh.csv
 fwb_utils/fwb_manufacturing/report/work_report_log/test_work_report_log.py
 fwb_utils/fwb_manufacturing/doctype/fwb_work_report/test_fwb_work_report.py
+fwb_utils/.DS_Store
+fwb_utils/fwb_manufacturing/.DS_Store
+PROGRESS.md
+PAYROLL_SETUP_README.md
+fwb_utils/tests/test_payroll_formulas.py
+fwb_utils/tests/test_dingtalk_attendance.py
+fwb_utils/tests/.DS_Store
+fwb_utils/tests/test_attendance_report.py

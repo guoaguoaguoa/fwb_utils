@@ -1,7 +1,7 @@
 {
  "app": "fwb_utils",
  "charts": [],
- "content": "[{\"id\":\"hdr_top\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>快捷入口</b></span>\",\"col\":12}},{\"id\":\"sc_fct\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"工厂总览\",\"col\":3}},{\"id\":\"sc_wr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"报工录入\",\"col\":3}},{\"id\":\"sc_mrc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"物料齐套\",\"col\":3}},{\"id\":\"sc_ews\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"工资结算\",\"col\":3}},{\"id\":\"spacer_1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hdr_cards\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>业务模块</b></span>\",\"col\":12}},{\"id\":\"card_wq\",\"type\":\"card\",\"data\":{\"card_name\":\"报工与质量\",\"col\":4}},{\"id\":\"card_mrc\",\"type\":\"card\",\"data\":{\"card_name\":\"物料齐套\",\"col\":4}},{\"id\":\"card_wage\",\"type\":\"card\",\"data\":{\"card_name\":\"工资结算\",\"col\":4}},{\"id\":\"card_rpt\",\"type\":\"card\",\"data\":{\"card_name\":\"制造报表\",\"col\":4}}]",
+ "content": "[{\"id\":\"hdr_top\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>快捷入口</b></span>\",\"col\":12}},{\"id\":\"sc_fct\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"工厂总览\",\"col\":3}},{\"id\":\"sc_wr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"报工录入\",\"col\":3}},{\"id\":\"sc_mrc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"物料齐套\",\"col\":3}},{\"id\":\"sc_ews\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"工资结算\",\"col\":3}},{\"id\":\"spacer_1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hdr_cards\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>业务模块</b></span>\",\"col\":12}},{\"id\":\"card_wq\",\"type\":\"card\",\"data\":{\"card_name\":\"报工与质量\",\"col\":4}},{\"id\":\"card_mrc\",\"type\":\"card\",\"data\":{\"card_name\":\"物料齐套\",\"col\":4}},{\"id\":\"card_wage\",\"type\":\"card\",\"data\":{\"card_name\":\"工资结算\",\"col\":4}},{\"id\":\"card_rpt\",\"type\":\"card\",\"data\":{\"card_name\":\"制造报表\",\"col\":4}},{\"id\":\"card_attn\",\"type\":\"card\",\"data\":{\"card_name\":\"考勤校对\",\"col\":4}}]",
  "creation": "2026-05-02 00:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -162,6 +162,33 @@
    "label": "Production Total Verification",
    "link_count": 0,
    "link_to": "Production Total Verification",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "label": "考勤校对",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "考勤校对（明细）",
+   "link_count": 0,
+   "link_to": "Attendance Verification Detail",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "考勤校对（总览）",
+   "link_count": 0,
+   "link_to": "Attendance Verification Overview",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
