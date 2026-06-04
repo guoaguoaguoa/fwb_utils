@@ -1,0 +1,72 @@
+{
+ "actions": [],
+ "creation": "2026-06-04 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "holiday_month",
+  "holiday_name",
+  "is_regular",
+  "quota_days",
+  "enabled"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "description": "该节日落在哪个自然月；工资单跨月时按月份范围累加。",
+   "fieldname": "holiday_month",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "月份",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "holiday_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "节日",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "description": "勾选=普工；不勾=综合岗(非普工)。",
+   "fieldname": "is_regular",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "普工配额"
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "description": "该节日在该岗位本年份给几天法定假；0 是有效业务值。",
+   "fieldname": "quota_days",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "配额天数",
+   "precision": "2"
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "启用"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-06-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Payroll Holiday Quota",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

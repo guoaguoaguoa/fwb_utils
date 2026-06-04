@@ -1,0 +1,88 @@
+{
+ "actions": [],
+ "creation": "2026-06-04 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "profile_name",
+  "is_regular",
+  "work_start",
+  "lunch_start",
+  "lunch_end",
+  "work_end",
+  "daily_hours"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "fieldname": "profile_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "档案名",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "description": "勾选=普工档案；不勾=综合岗(非普工)档案。计算时按员工是否普工选行。",
+   "fieldname": "is_regular",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "普工档案"
+  },
+  {
+   "columns": 1,
+   "description": "HH:MM",
+   "fieldname": "work_start",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "上班时刻"
+  },
+  {
+   "columns": 1,
+   "description": "HH:MM",
+   "fieldname": "lunch_start",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "午休起"
+  },
+  {
+   "columns": 1,
+   "description": "HH:MM",
+   "fieldname": "lunch_end",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "午休止"
+  },
+  {
+   "columns": 1,
+   "description": "HH:MM",
+   "fieldname": "work_end",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "下班时刻"
+  },
+  {
+   "columns": 1,
+   "description": "扣除午休后的日工作小时，用作迟到/早退单价分母。",
+   "fieldname": "daily_hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "日工作小时",
+   "precision": "2"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-06-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Salary Schedule Profile",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

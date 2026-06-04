@@ -1,0 +1,148 @@
+{
+ "actions": [],
+ "creation": "2026-06-02 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "credentials_section",
+  "app_key",
+  "app_secret",
+  "sync_section",
+  "enable_auto_sync",
+  "enable_result_sync",
+  "enable_detail_sync",
+  "column_break_sync",
+  "rolling_days",
+  "result_page_limit",
+  "timeout_seconds",
+  "default_company",
+  "gate_mapping_section",
+  "gate_401_device_ids",
+  "gate_402_device_ids",
+  "wifi_device_ids"
+ ],
+ "fields": [
+  {
+   "fieldname": "credentials_section",
+   "fieldtype": "Section Break",
+   "label": "钉钉应用凭据"
+  },
+  {
+   "fieldname": "app_key",
+   "fieldtype": "Data",
+   "label": "AppKey"
+  },
+  {
+   "fieldname": "app_secret",
+   "fieldtype": "Password",
+   "label": "AppSecret"
+  },
+  {
+   "fieldname": "sync_section",
+   "fieldtype": "Section Break",
+   "label": "同步设置"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_auto_sync",
+   "fieldtype": "Check",
+   "label": "启用每日自动同步"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_result_sync",
+   "fieldtype": "Check",
+   "label": "同步打卡结果到 Attendance"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_detail_sync",
+   "fieldtype": "Check",
+   "label": "同步打卡详情到 Employee Checkin"
+  },
+  {
+   "fieldname": "column_break_sync",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "7",
+   "description": "每日自动同步最近 N 天内已结束日期；接口会按 7 天自动拆批。",
+   "fieldname": "rolling_days",
+   "fieldtype": "Int",
+   "label": "自动同步滚动天数"
+  },
+  {
+   "default": "50",
+   "description": "钉钉打卡结果接口分页大小，最大 50。",
+   "fieldname": "result_page_limit",
+   "fieldtype": "Int",
+   "label": "打卡结果分页大小"
+  },
+  {
+   "default": "20",
+   "fieldname": "timeout_seconds",
+   "fieldtype": "Int",
+   "label": "API 超时秒数"
+  },
+  {
+   "fieldname": "default_company",
+   "fieldtype": "Link",
+   "label": "默认公司",
+   "options": "Company"
+  },
+  {
+   "fieldname": "gate_mapping_section",
+   "fieldtype": "Section Break",
+   "label": "门禁设备映射"
+  },
+  {
+   "description": "当钉钉打卡详情没有直接返回 401 字样时，用这里填写的 deviceId/deviceSN 映射为 401。多个值可用逗号、空格或换行分隔。",
+   "fieldname": "gate_401_device_ids",
+   "fieldtype": "Small Text",
+   "label": "401门设备ID/SN"
+  },
+  {
+   "description": "当钉钉打卡详情没有直接返回 402 字样时，用这里填写的 deviceId/deviceSN 映射为 402。多个值可用逗号、空格或换行分隔。",
+   "fieldname": "gate_402_device_ids",
+   "fieldtype": "Small Text",
+   "label": "402门设备ID/SN"
+  },
+  {
+   "description": "WiFi 打卡返回的原始 deviceId/deviceSN 填这里，系统会在 Employee Checkin 的【位置/设备ID】写 WiFi，并且不再作为未识别门禁提示。",
+   "fieldname": "wifi_device_ids",
+   "fieldtype": "Small Text",
+   "label": "WiFi打卡设备ID/SN"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-02 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Dingtalk Attendance Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

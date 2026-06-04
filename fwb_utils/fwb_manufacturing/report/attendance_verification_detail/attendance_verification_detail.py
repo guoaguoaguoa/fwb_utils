@@ -6,6 +6,7 @@ from __future__ import annotations
 from frappe.utils import flt
 
 from fwb_utils.fwb_manufacturing.attendance_report_utils import (
+	attendance_result_summary,
 	dept_short,
 	get_attendance_rows,
 	split_punches,
@@ -25,7 +26,7 @@ def get_columns():
 		{"label": "星期", "fieldname": "weekday", "fieldtype": "Data", "width": 50},
 		{"label": "员工姓名", "fieldname": "employee_name", "fieldtype": "Data", "width": 100},
 		{"label": "状态", "fieldname": "status_label", "fieldtype": "Data", "width": 70},
-		{"label": "打卡明细", "fieldname": "custom_punch_summary", "fieldtype": "Data", "width": 330},
+		{"label": "考勤结果", "fieldname": "attendance_result", "fieldtype": "Data", "width": 190},
 		{"label": "上班1", "fieldname": "punch1", "fieldtype": "Data", "width": 62},
 		{"label": "下班1", "fieldname": "punch2", "fieldtype": "Data", "width": 62},
 		{"label": "上班2", "fieldname": "punch3", "fieldtype": "Data", "width": 62},
@@ -51,7 +52,7 @@ def _map_row(r):
 		"weekday": weekday_cn(r.get("attendance_date")),
 		"employee_name": r.get("employee_name"),
 		"status_label": status_label(r),
-		"custom_punch_summary": r.get("custom_punch_summary"),
+		"attendance_result": attendance_result_summary(r),
 		"punch1": p[0],
 		"punch2": p[1],
 		"punch3": p[2],
@@ -75,9 +76,9 @@ def get_data(filters):
 				{
 					"status_label": "小计",
 					"employee_name": agg["name"],
-					"custom_punch_summary": f"实出勤 {agg['present']} 天 · 缺勤 {agg['absent']} 天 · 半天 {agg['half']} · 加班 {agg['ot']} 日 / {agg['ot_hours']:.1f} 时",
+					"attendance_result": f"实出勤 {agg['present']} 天 · 缺勤 {agg['absent']} 天 · 半天 {agg['half']} · 加班 {agg['ot_day_count']} 日 / {agg['ot_hours']:.1f} 时",
 					"overtime_hours": agg["ot_hours"],
-					"custom_overtime_days": agg["ot"],
+					"custom_overtime_days": agg["ot_day_count"],
 					"is_summary": 1,
 				}
 			)
@@ -86,7 +87,15 @@ def get_data(filters):
 		if r.get("employee") != cur:
 			flush()
 			cur = r.get("employee")
-			agg = {"name": r.get("employee_name"), "present": 0, "absent": 0, "half": 0, "ot": 0, "ot_hours": 0.0}
+			agg = {
+				"name": r.get("employee_name"),
+				"present": 0,
+				"absent": 0,
+				"half": 0,
+				"ot_day_count": 0,
+				"ot_days": 0.0,
+				"ot_hours": 0.0,
+			}
 		st = r.get("status")
 		if st == "Present":
 			agg["present"] += 1
@@ -96,7 +105,8 @@ def get_data(filters):
 			agg["half"] += 1
 		ot_d = flt(r.get("custom_overtime_days") or 0)
 		if ot_d > 0:
-			agg["ot"] += 1
+			agg["ot_day_count"] += 1
+			agg["ot_days"] += ot_d
 			agg["ot_hours"] += ot_d * 7
 		out.append(_map_row(r))
 	flush()

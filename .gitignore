@@ -14,3 +14,5 @@ fwb_utils/tests/test_payroll_formulas.py
 fwb_utils/tests/test_dingtalk_attendance.py
 fwb_utils/tests/.DS_Store
 fwb_utils/tests/test_attendance_report.py
+fwb_utils/tests/test_attendance_payroll_adjustments.py
+fwb_utils/tests/test_dingtalk_attendance_api.py

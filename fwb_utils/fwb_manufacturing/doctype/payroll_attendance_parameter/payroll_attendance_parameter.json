@@ -1,0 +1,167 @@
+{
+ "actions": [],
+ "creation": "2026-06-04 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "params_section",
+  "meal_unit_price",
+  "non_worker_monthly_rest_days",
+  "column_break_params",
+  "deduction_threshold_minutes",
+  "regular_daily_divisor",
+  "paid_leave_names",
+  "overtime_section",
+  "overtime_start_time",
+  "overtime_min_minutes",
+  "overtime_step_minutes",
+  "column_break_overtime",
+  "overtime_cap_hours",
+  "overtime_hours_per_day",
+  "overtime_daily_divisor",
+  "schedule_section",
+  "schedule_profiles"
+ ],
+ "fields": [
+  {
+   "fieldname": "params_section",
+   "fieldtype": "Section Break",
+   "label": "基础参数"
+  },
+  {
+   "default": "14",
+   "description": "全天实际到岗每天的餐补金额（元）。仅非普工结构发放。",
+   "fieldname": "meal_unit_price",
+   "fieldtype": "Currency",
+   "label": "餐补单价(元/天)"
+  },
+  {
+   "default": "6",
+   "description": "非普工应出勤 = 当月自然天数 − 本数 − 当月法定假。",
+   "fieldname": "non_worker_monthly_rest_days",
+   "fieldtype": "Int",
+   "label": "非普工月休息日"
+  },
+  {
+   "fieldname": "column_break_params",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "30",
+   "description": "单次迟到或早退缺勤工时满本阈值(分钟)才计扣，计则从第 1 分钟全扣。",
+   "fieldname": "deduction_threshold_minutes",
+   "fieldtype": "Int",
+   "label": "迟到早退起扣阈值(分钟)"
+  },
+  {
+   "default": "30",
+   "description": "普工迟到/早退单价的单日工资分母（普工单日工资 = 月固定/本数）。必须大于 0。",
+   "fieldname": "regular_daily_divisor",
+   "fieldtype": "Int",
+   "label": "普工单日工资分母"
+  },
+  {
+   "default": "年假,丧假",
+   "description": "按钉钉假期名称判断带薪假；多个名称可用逗号、空格或换行分隔。未列入的请假默认按无薪处理。",
+   "fieldname": "paid_leave_names",
+   "fieldtype": "Small Text",
+   "label": "带薪假名称"
+  },
+  {
+   "fieldname": "overtime_section",
+   "fieldtype": "Section Break",
+   "label": "普工加班参数"
+  },
+  {
+   "default": "17:00:00",
+   "description": "普工加班起算时刻；当天实际下班晚于该时刻后，按下方起步与阶梯规则折算。",
+   "fieldname": "overtime_start_time",
+   "fieldtype": "Time",
+   "label": "加班起算时刻"
+  },
+  {
+   "default": "60",
+   "description": "普工加班最少达到多少分钟才开始计；0 表示从起算时刻后立即计。",
+   "fieldname": "overtime_min_minutes",
+   "fieldtype": "Int",
+   "label": "加班起步分钟"
+  },
+  {
+   "default": "30",
+   "description": "普工加班按多少分钟一个阶梯向下取整。必须大于 0。",
+   "fieldname": "overtime_step_minutes",
+   "fieldtype": "Int",
+   "label": "加班阶梯分钟"
+  },
+  {
+   "fieldname": "column_break_overtime",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "5",
+   "description": "普工单日加班封顶小时；0 表示不计加班。",
+   "fieldname": "overtime_cap_hours",
+   "fieldtype": "Float",
+   "label": "单日加班封顶小时",
+   "precision": "2"
+  },
+  {
+   "default": "7",
+   "description": "多少个加班小时折算为 1 个加班天。必须大于 0。",
+   "fieldname": "overtime_hours_per_day",
+   "fieldtype": "Float",
+   "label": "加班小时折天分母",
+   "precision": "2"
+  },
+  {
+   "default": "30",
+   "description": "加班工资 = 折算加班天 × 月固定工资 / 本数。必须大于 0。",
+   "fieldname": "overtime_daily_divisor",
+   "fieldtype": "Int",
+   "label": "加班工资日分母"
+  },
+  {
+   "fieldname": "schedule_section",
+   "fieldtype": "Section Break",
+   "label": "排班档案"
+  },
+  {
+   "description": "普工与综合岗(非普工)各一行；上班/午休/下班时刻与日工作小时。计算迟到/早退缺勤工时与餐补按此档案。",
+   "fieldname": "schedule_profiles",
+   "fieldtype": "Table",
+   "label": "排班档案",
+   "options": "Salary Schedule Profile"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Payroll Attendance Parameter",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

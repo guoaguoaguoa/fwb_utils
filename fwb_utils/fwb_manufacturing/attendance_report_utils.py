@@ -81,6 +81,54 @@ def status_label(row) -> str:
 	return STATUS_LABEL.get(row.get("status"), row.get("status") or "")
 
 
+def _normalize_result_labels(labels):
+	labels = [label for label in labels if label]
+	if "正常" in labels:
+		non_normal_labels = [label for label in labels if label != "正常"]
+		if non_normal_labels:
+			if len(non_normal_labels) == 1 and non_normal_labels[0] == "缺卡":
+				return ["缺卡", "出勤"]
+			return non_normal_labels
+	return labels
+
+
+def _leave_result_label(row):
+	return row.get("custom_dingtalk_leave_name") or "请假"
+
+
+def _normalize_result_summary_text(text, row=None):
+	for sep in (":", "："):
+		if sep not in text:
+			continue
+		source, result = text.split(sep, 1)
+		labels = [label.strip() for label in re.split(r"[、,，/]+", result) if label.strip()]
+		if row and row.get("status") == "On Leave" and labels and all(label == "缺卡" for label in labels):
+			return f"{source}{sep}{_leave_result_label(row)}"
+		normalized_labels = _normalize_result_labels(labels)
+		if normalized_labels != labels:
+			return f"{source}{sep}{'、'.join(normalized_labels)}"
+		return text
+	return text
+
+
+def attendance_result_summary(row) -> str:
+	"""明细表展示用：保留考勤结果口径，不重复展示每次打卡时间。"""
+	text = _punch(row)
+	without_times = re.sub(r"\s*\([^)]*\)", "", text).strip()
+	without_times = _normalize_result_summary_text(without_times, row)
+	if without_times in ("钉钉API", "钉钉API:", "钉钉API："):
+		without_times = f"钉钉API · {status_label(row)}"
+	if not without_times:
+		without_times = status_label(row)
+
+	flags = []
+	if row.get("late_entry") and "迟到" not in without_times:
+		flags.append("迟到")
+	if row.get("early_exit") and "早退" not in without_times:
+		flags.append("早退")
+	return without_times + (f" · {'/'.join(flags)}" if flags else "")
+
+
 def compact_code(row) -> str:
 	"""总览格子紧凑码：出/缺/半/假，旷工→旷；加班加 💪，缺卡加 △。"""
 	code = STATUS_CODE.get(row.get("status"), "")
@@ -147,7 +195,7 @@ def get_attendance_rows(filters):
 		f"""
 		select employee, employee_name, department, shift, attendance_date, status,
 		       in_time, out_time, working_hours, late_entry, early_exit,
-		       custom_punch_summary, custom_overtime_days
+		       custom_punch_summary, custom_overtime_days, custom_dingtalk_leave_name
 		from `tabAttendance`
 		where {" and ".join(conds)}
 		order by employee_name, attendance_date

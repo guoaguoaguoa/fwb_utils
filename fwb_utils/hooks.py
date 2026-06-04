@@ -5,14 +5,14 @@ app_description = "ERPNext manufacturing reporting, QC, and wage settlement exte
 app_email = "tech@freewoodenbox.com"
 app_license = "MIT"
 
+doctype_js = {
+    "Salary Slip": "public/js/salary_slip.js",
+}
+
 doc_events = {
     "Work Order": {
         "on_submit": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_submit",
         "on_cancel": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_cancel",
-    },
-    # 加班自动结算：工资单 validate 时按考勤(custom_overtime_days)算加班金额写「加班」行
-    "Salary Slip": {
-        "validate": "fwb_utils.fwb_manufacturing.dingtalk_attendance.apply_overtime_to_salary_slip",
     },
 }
 
@@ -25,6 +25,10 @@ scheduler_events = {
         # 每天 9:30 发送站内提醒（Notification Log）
         "30 9 * * *": [
             "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.send_material_readiness_daily_notification"
+        ],
+        # 钉钉考勤 API：默认由 Dingtalk Attendance Settings.enable_auto_sync 控制，未启用时 no-op
+        "10 5 * * *": [
+            "fwb_utils.fwb_manufacturing.dingtalk_attendance_api.sync_rolling_dingtalk_attendance"
         ],
     }
 }
@@ -98,7 +102,7 @@ fixtures = [
     {
         "doctype": "Property Setter",
         "filters": [
-            ["doc_type", "in", ["BOM", "Employee", "Work Order", "Salary Slip", "BOM Operation", "Item"]],
+            ["doc_type", "in", ["BOM", "Employee", "Work Order", "Salary Slip", "BOM Operation", "Item", "Attendance"]],
         ],
     },
 ]
