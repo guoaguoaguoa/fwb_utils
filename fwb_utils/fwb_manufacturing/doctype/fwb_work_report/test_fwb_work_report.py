@@ -232,3 +232,102 @@ class TestFWBWorkReport(FrappeTestCase):
 		self.assertEqual(sql_val, 95.0)
 		self.assertEqual(flt(py_val), 95.0)
 		self.assertEqual(sql_val, flt(py_val))
+
+	# ===== 扫码足量提醒（防串单）=====
+
+	def test_is_overproduced_inclusive_threshold(self):
+		"""阈值口径：累计有效数量 >= 工单总数即触发（含等于）。"""
+		self.assertTrue(fwb_work_report.is_overproduced(100, 100))  # 等于即触发
+		self.assertTrue(fwb_work_report.is_overproduced(101, 100))
+		self.assertFalse(fwb_work_report.is_overproduced(99, 100))
+		# 工单未设数量 (<=0) 一律不触发，避免误弹
+		self.assertFalse(fwb_work_report.is_overproduced(50, 0))
+		self.assertFalse(fwb_work_report.is_overproduced(0, 0))
+
+	def _make_submitted_report(self, employee, workstation, work_order, **kwargs):
+		wr = make_fwb_work_report(employee=employee, workstation=workstation, **kwargs)
+		wr.submit()
+		# 用合成且唯一的工单号，避免与开发库真实数据串联；提交态下直接写库
+		frappe.db.set_value(
+			"FWB Work Report", wr.name, "work_order", work_order, update_modified=False
+		)
+		return wr
+
+	def _patched_work_order(self, qty, item_name="测试产品A"):
+		"""只为 Work Order 查询返回合成总数/产品名，其余 get_value 走真实实现。"""
+		real_get_value = frappe.db.get_value
+
+		def fake_get_value(doctype, *args, **kwargs):
+			if doctype == "Work Order":
+				return frappe._dict(qty=qty, item_name=item_name)
+			return real_get_value(doctype, *args, **kwargs)
+
+		return patch.object(
+			fwb_work_report.frappe.db, "get_value", side_effect=fake_get_value
+		)
+
+	def test_production_progress_uses_effective_qty_and_inclusive_flag(self):
+		"""累计有效数量 == 工单总数时 exceeded=True（>= 含等于）。"""
+		employee = ensure_test_employee("overprod-eq@example.com", employee_name="OverProd EQ")
+		ws = ensure_test_workstation("软包区")
+		wo = "WO-TEST-OVERPROD-EQ"
+		self._make_submitted_report(employee.name, ws.name, wo, qty=60)
+		self._make_submitted_report(employee.name, ws.name, wo, qty=40)
+
+		with self._patched_work_order(qty=100):
+			res = fwb_work_report.get_production_progress(work_order=wo, workstation=ws.name)
+
+		self.assertEqual(flt(res["reported_qty"]), 100.0)
+		self.assertEqual(flt(res["order_qty"]), 100.0)
+		self.assertEqual(res["product_name"], "测试产品A")
+		self.assertTrue(res["is_production_station"])
+		self.assertTrue(res["exceeded"])
+
+	def test_production_progress_subtracts_defects(self):
+		"""口径证明：累计用有效结算数量（减次品），不是原始报工数 qty。"""
+		employee = ensure_test_employee("overprod-def@example.com", employee_name="OverProd Def")
+		ws = ensure_test_workstation("装配区")
+		wo = "WO-TEST-OVERPROD-DEF"
+		# 原始 qty 60+40=100，但 60 那条扣 10 次品 → 有效 50+40=90 < 100
+		self._make_submitted_report(employee.name, ws.name, wo, qty=60, defect_qty=10)
+		self._make_submitted_report(employee.name, ws.name, wo, qty=40)
+
+		with self._patched_work_order(qty=100):
+			res = fwb_work_report.get_production_progress(work_order=wo, workstation=ws.name)
+
+		self.assertEqual(flt(res["reported_qty"]), 90.0)
+		# 若误用原始 qty=100，这里会错判 True
+		self.assertFalse(res["exceeded"])
+
+	def test_production_progress_excludes_rework_and_other_station(self):
+		"""有偿返工报工、其它工位报工都不计入本工序累计。"""
+		employee = ensure_test_employee("overprod-rw@example.com", employee_name="OverProd RW")
+		ws = ensure_test_workstation("面漆房")
+		other_ws = ensure_test_workstation("抛光区")
+		wo = "WO-TEST-OVERPROD-RW"
+		# 计入：面漆房 普通报工 80
+		self._make_submitted_report(employee.name, ws.name, wo, qty=80)
+		# 不计入：有偿返工 50
+		self._make_submitted_report(
+			employee.name, ws.name, wo,
+			qty=50, rework_type="有偿返工", rework_rate=1, custom_piece_rate=0,
+		)
+		# 不计入：他工位 抛光区 90
+		self._make_submitted_report(employee.name, other_ws.name, wo, qty=90)
+
+		with self._patched_work_order(qty=100):
+			res = fwb_work_report.get_production_progress(work_order=wo, workstation=ws.name)
+
+		self.assertEqual(flt(res["reported_qty"]), 80.0)
+		self.assertFalse(res["exceeded"])
+
+	def test_production_progress_safe_for_non_production_station(self):
+		"""非 6 生产工位（如质检区）直接安全返回，不触发提醒。"""
+		res = fwb_work_report.get_production_progress(work_order="WO-X", workstation="质检区")
+		self.assertFalse(res["is_production_station"])
+		self.assertFalse(res["exceeded"])
+
+	def test_production_progress_safe_when_args_missing(self):
+		res = fwb_work_report.get_production_progress(work_order=None, workstation=None)
+		self.assertFalse(res["exceeded"])
+		self.assertEqual(flt(res["reported_qty"]), 0.0)

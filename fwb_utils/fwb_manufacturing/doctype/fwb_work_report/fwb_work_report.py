@@ -4,6 +4,10 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt
 
+# 6 个生产工位（工序）。报工身份识别、扫码足量提醒、员工过滤共用这一份清单，
+# 避免常量散落在 Python / Client Script 多处导致漂移。
+PRODUCTION_WORKSTATIONS = ("木工房", "底漆房", "面漆房", "装配区", "抛光区", "软包区")
+
 
 class FWBWorkReport(Document):
     pass
@@ -114,6 +118,79 @@ def apply_quality_totals_to_work_report(target_doc, excluded_rework_record=None)
     return total_quality_inspected
 
 
+def is_overproduced(reported_qty, order_qty):
+    """本工序累计有效数量是否已达到 / 超过工单总数（含等于）。
+
+    阈值口径集中在此一处：order_qty<=0（工单未设数量）一律不触发，避免误弹。
+    """
+    order_qty = flt(order_qty)
+    if order_qty <= 0:
+        return False
+    return flt(reported_qty) >= order_qty
+
+
+@frappe.whitelist()
+def get_production_progress(work_order=None, workstation=None):
+    """扫码报工「足量提醒」的服务端口径。
+
+    返回某工单 + 某生产工位（工序）下已提交、非返工报工的累计有效结算数量，
+    并与工单总数比较。数量口径复用 ``effective_qty_sql``（与 Employee Wage
+    Sheet / 生产总数核对报表同一函数），不新增第二套口径。
+
+    仅 6 个生产工位参与；非生产工位或入参不全时安全返回 ``exceeded=False``。
+    """
+    result = {
+        "work_order": work_order,
+        "workstation": workstation,
+        "product_name": "",
+        "order_qty": 0.0,
+        "reported_qty": 0.0,
+        "is_production_station": False,
+        "exceeded": False,
+    }
+
+    if not work_order or not workstation:
+        return result
+
+    result["is_production_station"] = workstation in PRODUCTION_WORKSTATIONS
+    if not result["is_production_station"]:
+        return result
+
+    wo = frappe.db.get_value(
+        "Work Order", work_order, ["qty", "item_name"], as_dict=True
+    )
+    if not wo:
+        return result
+
+    order_qty = flt(wo.qty)
+    result["order_qty"] = order_qty
+    result["product_name"] = wo.item_name or ""
+
+    eff = effective_qty_sql("wr")
+    reported_qty = (
+        frappe.db.sql(
+            f"""
+            SELECT COALESCE(SUM({eff}), 0)
+            FROM `tabFWB Work Report` wr
+            WHERE wr.work_order = %s
+              AND wr.workstation = %s
+              AND wr.docstatus = 1
+              AND (
+                  wr.rework_type = '否'
+                  OR wr.rework_type IS NULL
+                  OR wr.rework_type = ''
+              )
+            """,
+            (work_order, workstation),
+        )[0][0]
+        or 0
+    )
+    reported_qty = flt(reported_qty)
+    result["reported_qty"] = reported_qty
+    result["exceeded"] = is_overproduced(reported_qty, order_qty)
+    return result
+
+
 @frappe.whitelist()
 def get_production_employee_query(doctype, txt, searchfield, start, page_len, filters):
     """FWB Work Report 用的员工过滤：
@@ -132,14 +209,7 @@ def get_production_employee_query(doctype, txt, searchfield, start, page_len, fi
     if ws_filter:
         workstations = (ws_filter,)
     else:
-        workstations = (
-            "木工房",
-            "底漆房",
-            "面漆房",
-            "装配区",
-            "抛光区",
-            "软包区",
-        )
+        workstations = PRODUCTION_WORKSTATIONS
 
     return frappe.db.sql(
         f"""
