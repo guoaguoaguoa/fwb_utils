@@ -3,7 +3,6 @@ __pycache__/
 fix_photo_req.py
 fwb_utils/fwb_manufacturing/doctype/rework_record/test_rework_record.py
 fwb_utils/tests/test_server_script_fixtures.py
-fwb_utils/translations/zh.csv
 fwb_utils/fwb_manufacturing/report/work_report_log/test_work_report_log.py
 fwb_utils/fwb_manufacturing/doctype/fwb_work_report/test_fwb_work_report.py
 fwb_utils/.DS_Store
