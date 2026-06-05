@@ -1,6 +1,11 @@
 import frappe
 from frappe.utils import cint, flt
 
+from fwb_utils.fwb_manufacturing.doctype.payroll_attendance_parameter.payroll_attendance_parameter import (
+	DEFAULT_OVERTIME_START_TIME,
+	normalize_time_string,
+)
+
 
 REGULAR_QUOTAS_2026 = (
 	{"year": 2026, "holiday_month": 5, "holiday_name": "劳动节", "is_regular": 1, "quota_days": 1},
@@ -31,6 +36,16 @@ def _is_blank(value):
 	return value is None or str(value).strip() == ""
 
 
+def _set_if_changed(doc, fieldname, value):
+	if doc.get(fieldname) == value:
+		return False
+	if callable(getattr(doc, "set", None)):
+		doc.set(fieldname, value)
+	else:
+		doc[fieldname] = value
+	return True
+
+
 def _legacy_paid_leave_names():
 	rows = frappe.db.sql(
 		"""select value
@@ -44,19 +59,19 @@ def _legacy_paid_leave_names():
 
 
 def _set_defaults(doc):
+	normalized_time = normalize_time_string(doc.get("overtime_start_time"), DEFAULT_OVERTIME_START_TIME)
+	_set_if_changed(doc, "overtime_start_time", normalized_time)
 	if _is_blank(doc.get("paid_leave_names")):
 		doc.paid_leave_names = _legacy_paid_leave_names() or "年假,丧假"
-	if _is_blank(doc.get("overtime_start_time")):
-		doc.overtime_start_time = "17:00:00"
 	if _is_blank(doc.get("overtime_min_minutes")):
 		doc.overtime_min_minutes = 60
-	if _is_blank(doc.get("overtime_step_minutes")):
+	if cint(doc.get("overtime_step_minutes")) <= 0:
 		doc.overtime_step_minutes = 30
 	if _is_blank(doc.get("overtime_cap_hours")):
 		doc.overtime_cap_hours = 5
-	if _is_blank(doc.get("overtime_hours_per_day")):
+	if flt(doc.get("overtime_hours_per_day")) <= 0:
 		doc.overtime_hours_per_day = 7
-	if _is_blank(doc.get("overtime_daily_divisor")):
+	if cint(doc.get("overtime_daily_divisor")) <= 0:
 		doc.overtime_daily_divisor = 30
 
 

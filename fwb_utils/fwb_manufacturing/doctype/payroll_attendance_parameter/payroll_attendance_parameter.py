@@ -2,10 +2,14 @@
 # For license information, please see license.txt
 
 import re
+from datetime import timedelta
 
 import frappe
 from frappe.model.document import Document
 from frappe.utils import cint, flt
+
+DEFAULT_OVERTIME_START_TIME = "17:00:00"
+TIME_RE = re.compile(r"(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?")
 
 
 DEFAULT_PROFILES = (
@@ -34,13 +38,26 @@ def _is_blank(value):
 	return value is None or str(value).strip() == ""
 
 
-def _time_to_minutes(value):
+def _time_parts(value):
 	if _is_blank(value):
 		return None
+	if isinstance(value, timedelta):
+		total_seconds = int(value.total_seconds())
+		if total_seconds < 0 or total_seconds >= 24 * 60 * 60:
+			return None
+		hours = total_seconds // 3600
+		minutes = (total_seconds % 3600) // 60
+		seconds = total_seconds % 60
+		return hours, minutes, seconds
 	if hasattr(value, "hour") and hasattr(value, "minute"):
-		return cint(value.hour) * 60 + cint(value.minute)
+		hours = cint(value.hour)
+		minutes = cint(value.minute)
+		seconds = cint(getattr(value, "second", 0))
+		if hours > 23 or minutes > 59 or seconds > 59:
+			return None
+		return hours, minutes, seconds
 	text = str(value).strip()
-	match = re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2}))?", text)
+	match = TIME_RE.fullmatch(text)
 	if not match:
 		return None
 	hours = cint(match.group(1))
@@ -48,7 +65,21 @@ def _time_to_minutes(value):
 	seconds = cint(match.group(3) or 0)
 	if hours > 23 or minutes > 59 or seconds > 59:
 		return None
-	return hours * 60 + minutes
+	return hours, minutes, seconds
+
+
+def normalize_time_string(value, default=None):
+	parts = _time_parts(value)
+	if parts is None:
+		return default
+	return f"{parts[0]:02d}:{parts[1]:02d}:{parts[2]:02d}"
+
+
+def _time_to_minutes(value):
+	parts = _time_parts(value)
+	if parts is None:
+		return None
+	return parts[0] * 60 + parts[1]
 
 
 class PayrollAttendanceParameter(Document):
@@ -72,7 +103,11 @@ class PayrollAttendanceParameter(Document):
 		if _is_blank(self.paid_leave_names):
 			self.paid_leave_names = "年假,丧假"
 		if _is_blank(self.overtime_start_time):
-			self.overtime_start_time = "17:00:00"
+			self.overtime_start_time = DEFAULT_OVERTIME_START_TIME
+		else:
+			normalized_time = normalize_time_string(self.overtime_start_time)
+			if normalized_time:
+				self.overtime_start_time = normalized_time
 		if _is_blank(self.overtime_min_minutes):
 			self.overtime_min_minutes = 60
 		if _is_blank(self.overtime_step_minutes):
@@ -110,7 +145,7 @@ class PayrollAttendanceParameter(Document):
 				frappe.throw(f"{label}必须大于 0。")
 
 		if _time_to_minutes(self.overtime_start_time) is None:
-			frappe.throw("加班起算时刻必须是 HH:MM 或 HH:MM:SS 格式。")
+			frappe.throw("加班起算时刻必须是 HH:MM、HH:MM:SS 或 HH:MM:SS.ffffff 格式。")
 
 	def _validate_schedule_profiles(self):
 		counts = {0: 0, 1: 0}
