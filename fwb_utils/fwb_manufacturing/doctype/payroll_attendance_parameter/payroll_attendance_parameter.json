@@ -1,6 +1,6 @@
 {
  "actions": [],
- "creation": "2026-06-04 00:00:00.000000",
+ "creation": "2026-06-04 00:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -27,21 +27,21 @@
   {
    "fieldname": "params_section",
    "fieldtype": "Section Break",
-   "label": "基础参数"
+   "label": "\u57fa\u7840\u53c2\u6570"
   },
   {
    "default": "14",
-   "description": "全天实际到岗每天的餐补金额（元）。仅非普工结构发放。",
+   "description": "\u5168\u5929\u5b9e\u9645\u5230\u5c97\u6bcf\u5929\u7684\u9910\u8865\u91d1\u989d\uff08\u5143\uff09\u3002\u4ec5\u975e\u666e\u5de5\u7ed3\u6784\u53d1\u653e\u3002",
    "fieldname": "meal_unit_price",
    "fieldtype": "Currency",
-   "label": "餐补单价(元/天)"
+   "label": "\u9910\u8865\u5355\u4ef7(\u5143/\u5929)"
   },
   {
    "default": "6",
-   "description": "非普工应出勤 = 当月自然天数 − 本数 − 当月法定假。",
+   "description": "\u975e\u666e\u5de5\u5e94\u51fa\u52e4 = \u5f53\u6708\u81ea\u7136\u5929\u6570 \u2212 \u672c\u6570 \u2212 \u5f53\u6708\u6cd5\u5b9a\u5047\u3002",
    "fieldname": "non_worker_monthly_rest_days",
    "fieldtype": "Int",
-   "label": "非普工月休息日"
+   "label": "\u975e\u666e\u5de5\u6708\u4f11\u606f\u65e5"
   },
   {
    "fieldname": "column_break_params",
@@ -49,50 +49,50 @@
   },
   {
    "default": "30",
-   "description": "单次迟到或早退缺勤工时满本阈值(分钟)才计扣，计则从第 1 分钟全扣。",
+   "description": "\u5355\u6b21\u8fdf\u5230\u6216\u65e9\u9000\u7f3a\u52e4\u5de5\u65f6\u6ee1\u672c\u9608\u503c(\u5206\u949f)\u624d\u8ba1\u6263\uff0c\u8ba1\u5219\u4ece\u7b2c 1 \u5206\u949f\u5168\u6263\u3002",
    "fieldname": "deduction_threshold_minutes",
    "fieldtype": "Int",
-   "label": "迟到早退起扣阈值(分钟)"
+   "label": "\u8fdf\u5230\u65e9\u9000\u8d77\u6263\u9608\u503c(\u5206\u949f)"
   },
   {
    "default": "30",
-   "description": "普工迟到/早退单价的单日工资分母（普工单日工资 = 月固定/本数）。必须大于 0。",
+   "description": "\u666e\u5de5\u8fdf\u5230/\u65e9\u9000\u5355\u4ef7\u7684\u5355\u65e5\u5de5\u8d44\u5206\u6bcd\uff08\u666e\u5de5\u5355\u65e5\u5de5\u8d44 = \u6708\u56fa\u5b9a/\u672c\u6570\uff09\u3002\u5fc5\u987b\u5927\u4e8e 0\u3002",
    "fieldname": "regular_daily_divisor",
    "fieldtype": "Int",
-   "label": "普工单日工资分母"
+   "label": "\u666e\u5de5\u5355\u65e5\u5de5\u8d44\u5206\u6bcd"
   },
   {
-   "default": "年假,丧假",
-   "description": "按钉钉假期名称判断带薪假；多个名称可用逗号、空格或换行分隔。未列入的请假默认按无薪处理。",
+   "default": "\u5e74\u5047,\u4e27\u5047",
+   "description": "\u6309\u9489\u9489\u5047\u671f\u540d\u79f0\u5224\u65ad\u5e26\u85aa\u5047\uff1b\u591a\u4e2a\u540d\u79f0\u53ef\u7528\u9017\u53f7\u3001\u7a7a\u683c\u6216\u6362\u884c\u5206\u9694\u3002\u672a\u5217\u5165\u7684\u8bf7\u5047\u9ed8\u8ba4\u6309\u65e0\u85aa\u5904\u7406\u3002",
    "fieldname": "paid_leave_names",
    "fieldtype": "Small Text",
-   "label": "带薪假名称"
+   "label": "\u5e26\u85aa\u5047\u540d\u79f0"
   },
   {
    "fieldname": "overtime_section",
    "fieldtype": "Section Break",
-   "label": "普工加班参数"
+   "label": "\u666e\u5de5\u52a0\u73ed\u53c2\u6570"
   },
   {
    "default": "17:00:00",
-   "description": "普工加班起算时刻；当天实际下班晚于该时刻后，按下方起步与阶梯规则折算。",
+   "description": "\u666e\u5de5\u52a0\u73ed\u8d77\u7b97\u65f6\u523b\uff1b\u5f53\u5929\u5b9e\u9645\u4e0b\u73ed\u665a\u4e8e\u8be5\u65f6\u523b\u540e\uff0c\u6309\u4e0b\u65b9\u8d77\u6b65\u4e0e\u9636\u68af\u89c4\u5219\u6298\u7b97\u3002",
    "fieldname": "overtime_start_time",
    "fieldtype": "Time",
-   "label": "加班起算时刻"
+   "label": "\u52a0\u73ed\u8d77\u7b97\u65f6\u523b"
   },
   {
    "default": "60",
-   "description": "普工加班最少达到多少分钟才开始计；0 表示从起算时刻后立即计。",
+   "description": "\u666e\u5de5\u52a0\u73ed\u6700\u5c11\u8fbe\u5230\u591a\u5c11\u5206\u949f\u624d\u5f00\u59cb\u8ba1\uff1b0 \u8868\u793a\u4ece\u8d77\u7b97\u65f6\u523b\u540e\u7acb\u5373\u8ba1\u3002",
    "fieldname": "overtime_min_minutes",
    "fieldtype": "Int",
-   "label": "加班起步分钟"
+   "label": "\u52a0\u73ed\u8d77\u6b65\u5206\u949f"
   },
   {
    "default": "30",
-   "description": "普工加班按多少分钟一个阶梯向下取整。必须大于 0。",
+   "description": "\u666e\u5de5\u52a0\u73ed\u6309\u591a\u5c11\u5206\u949f\u4e00\u4e2a\u9636\u68af\u5411\u4e0b\u53d6\u6574\u3002\u5fc5\u987b\u5927\u4e8e 0\u3002",
    "fieldname": "overtime_step_minutes",
    "fieldtype": "Int",
-   "label": "加班阶梯分钟"
+   "label": "\u52a0\u73ed\u9636\u68af\u5206\u949f"
   },
   {
    "fieldname": "column_break_overtime",
@@ -100,43 +100,43 @@
   },
   {
    "default": "5",
-   "description": "普工单日加班封顶小时；0 表示不计加班。",
+   "description": "\u666e\u5de5\u5355\u65e5\u52a0\u73ed\u5c01\u9876\u5c0f\u65f6\uff1b0 \u8868\u793a\u4e0d\u8ba1\u52a0\u73ed\u3002",
    "fieldname": "overtime_cap_hours",
    "fieldtype": "Float",
-   "label": "单日加班封顶小时",
+   "label": "\u5355\u65e5\u52a0\u73ed\u5c01\u9876\u5c0f\u65f6",
    "precision": "2"
   },
   {
    "default": "7",
-   "description": "多少个加班小时折算为 1 个加班天。必须大于 0。",
+   "description": "\u591a\u5c11\u4e2a\u52a0\u73ed\u5c0f\u65f6\u6298\u7b97\u4e3a 1 \u4e2a\u52a0\u73ed\u5929\u3002\u5fc5\u987b\u5927\u4e8e 0\u3002",
    "fieldname": "overtime_hours_per_day",
    "fieldtype": "Float",
-   "label": "加班小时折天分母",
+   "label": "\u52a0\u73ed\u5c0f\u65f6\u6298\u5929\u5206\u6bcd",
    "precision": "2"
   },
   {
    "default": "30",
-   "description": "加班工资 = 折算加班天 × 月固定工资 / 本数。必须大于 0。",
+   "description": "\u52a0\u73ed\u5de5\u8d44 = \u6298\u7b97\u52a0\u73ed\u5929 \u00d7 \u6708\u56fa\u5b9a\u5de5\u8d44 / \u672c\u6570\u3002\u5fc5\u987b\u5927\u4e8e 0\u3002",
    "fieldname": "overtime_daily_divisor",
    "fieldtype": "Int",
-   "label": "加班工资日分母"
+   "label": "\u52a0\u73ed\u5de5\u8d44\u65e5\u5206\u6bcd"
   },
   {
    "fieldname": "schedule_section",
    "fieldtype": "Section Break",
-   "label": "排班档案"
+   "label": "\u6392\u73ed\u6863\u6848"
   },
   {
-   "description": "普工与综合岗(非普工)各一行；上班/午休/下班时刻与日工作小时。计算迟到/早退缺勤工时与餐补按此档案。",
+   "description": "\u666e\u5de5\u4e0e\u7efc\u5408\u5c97(\u975e\u666e\u5de5)\u5404\u4e00\u884c\uff1b\u4e0a\u73ed/\u5348\u4f11/\u4e0b\u73ed\u65f6\u523b\u4e0e\u65e5\u5de5\u4f5c\u5c0f\u65f6\u3002\u8ba1\u7b97\u8fdf\u5230/\u65e9\u9000\u7f3a\u52e4\u5de5\u65f6\u4e0e\u9910\u8865\u6309\u6b64\u6863\u6848\u3002",
    "fieldname": "schedule_profiles",
    "fieldtype": "Table",
-   "label": "排班档案",
+   "label": "\u6392\u73ed\u6863\u6848",
    "options": "Salary Schedule Profile"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-06-04 00:00:00.000000",
+ "modified": "2026-06-05 08:56:31.540306",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Payroll Attendance Parameter",
@@ -151,17 +151,10 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
-  },
-  {
-   "create": 1,
-   "email": 1,
-   "print": 1,
-   "read": 1,
-   "role": "HR Manager",
-   "share": 1,
-   "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "states": []
 }
