@@ -1,0 +1,60 @@
+{
+ "actions": [],
+ "creation": "2026-06-05 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "effective_from",
+  "personal_amount",
+  "enabled",
+  "note"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "description": "必须填每月 1 日。工资单开始日期大于等于本日期时生效。",
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "生效月份",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "description": "全公司统一的个人社保固定扣款金额。",
+   "fieldname": "personal_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "个人社保扣款",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "启用"
+  },
+  {
+   "columns": 3,
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "备注"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-06-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Payroll Social Security Rule",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

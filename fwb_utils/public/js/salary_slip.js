@@ -16,16 +16,23 @@ frappe.ui.form.on("Salary Slip", {
 					const data = r.message || {};
 					frm.reload_doc();
 					frappe.show_alert({
-						message: __("已重算：实际到岗 {0} 天，记薪 {1} 天，餐补 {2} 天，迟到扣款 {3}，早退扣款 {4}，净工资 {5}", [
+						message: __("已重算：实际到岗 {0} 天，记薪 {1} 天，餐补 {2} 天，迟到扣款 {3}，早退扣款 {4}，社保个人 {5}，净工资 {6}", [
 							data.actual_attendance_days || 0,
 							data.payment_days || 0,
 							data.meal_days || 0,
 							data.late_deduction_amount || 0,
 							data.early_deduction_amount || 0,
+							data.social_security_personal_amount || 0,
 							data.net_pay || 0,
 						]),
 						indicator: "green",
 					});
+					if (data.social_security_warning) {
+						frappe.show_alert({
+							message: __(data.social_security_warning),
+							indicator: "orange",
+						});
+					}
 				},
 			});
 		});

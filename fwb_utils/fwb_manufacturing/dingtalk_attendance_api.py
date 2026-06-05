@@ -1016,7 +1016,7 @@ def recalculate_salary_slip_attendance(salary_slip):
 	doc.get_working_days_details(lwp=doc.leave_without_pay)
 	doc.set_salary_structure_assignment()
 	doc.calculate_net_pay()
-	apply_attendance_payroll_adjustments_to_salary_slip(doc)
+	adjustment_result = apply_attendance_payroll_adjustments_to_salary_slip(doc) or frappe._dict()
 	doc.compute_year_to_date()
 	doc.compute_month_to_date()
 	doc.compute_component_wise_year_to_date()
@@ -1047,6 +1047,8 @@ def recalculate_salary_slip_attendance(salary_slip):
 		"meal_amount": factors.meal_days * flt(_load_attendance_params().meal_unit_price),
 		"late_deduction_amount": late_deduction_amount,
 		"early_deduction_amount": early_deduction_amount,
+		"social_security_personal_amount": flt(adjustment_result.get("social_security_personal_amount")),
+		"social_security_warning": adjustment_result.get("social_security_warning") or "",
 		"gross_pay": doc.gross_pay,
 		"net_pay": doc.net_pay,
 	}

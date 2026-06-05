@@ -27,6 +27,9 @@ OVERTIME_COMPONENT = "加班"
 MEAL_COMPONENT = "餐补"
 LATE_DEDUCTION_COMPONENT = "迟到扣款"
 EARLY_DEDUCTION_COMPONENT = "早退扣款"
+PERSONAL_SOCIAL_SECURITY_COMPONENT = "社保-个人"
+COMPANY_SOCIAL_SECURITY_COMPONENT = "社保-单位"
+SOCIAL_SECURITY_EMPLOYMENT_TYPE = "缴纳社保"
 DEFAULT_PAID_LEAVE_NAMES = ("年假", "丧假")
 REGULAR_WORKER_STRUCTURE = "普工结构"  # 仅此结构计加班费
 NON_WORKER_STRUCTURES = ("内贸业务员结构", "外贸业务员结构", "美工结构", "行政结构")
@@ -756,6 +759,13 @@ def _set_component_amount(doc, tablefield, component, amount, preserve_zero=True
 	return False
 
 
+def _remove_component_rows(doc, tablefield, component):
+	rows = [row for row in doc.get(tablefield, []) if row.salary_component == component]
+	for row in rows:
+		doc.get(tablefield).remove(row)
+	return bool(rows)
+
+
 def _set_earning_component_amount(doc, component, amount, preserve_zero=True):
 	return _set_component_amount(doc, "earnings", component, amount, preserve_zero=preserve_zero)
 
@@ -779,6 +789,54 @@ def _salary_structure_assignment_for_slip(doc, structure=None):
 
 def _fixed_monthly_amount(ssa):
 	return sum(flt(ssa.get(fieldname)) for _component, fieldname in FIXED_ATTENDANCE_COMPONENTS)
+
+
+def _employee_requires_personal_social_security(employee):
+	return frappe.db.get_value("Employee", employee, "employment_type") == SOCIAL_SECURITY_EMPLOYMENT_TYPE
+
+
+def _social_security_personal_amount_for_date(start_date):
+	from fwb_utils.fwb_manufacturing.doctype.payroll_social_security_parameter.payroll_social_security_parameter import (
+		get_personal_amount_for_date,
+	)
+	return flt(get_personal_amount_for_date(start_date))
+
+
+def _apply_social_security_adjustment(doc):
+	result = frappe._dict(personal_amount=0, warning="", touched=False)
+	result.touched = _remove_component_rows(doc, "earnings", COMPANY_SOCIAL_SECURITY_COMPONENT)
+	result.touched = _remove_component_rows(doc, "deductions", COMPANY_SOCIAL_SECURITY_COMPONENT) or result.touched
+
+	if not doc.get("employee") or not doc.get("start_date"):
+		return result
+
+	if not _employee_requires_personal_social_security(doc.employee):
+		result.touched = _remove_component_rows(doc, "deductions", PERSONAL_SOCIAL_SECURITY_COMPONENT) or result.touched
+		return result
+
+	amount = _social_security_personal_amount_for_date(doc.start_date)
+	if amount <= 0:
+		result.touched = _remove_component_rows(doc, "deductions", PERSONAL_SOCIAL_SECURITY_COMPONENT) or result.touched
+		result.warning = "当月未配置社保个人扣款，未扣社保。"
+		return result
+
+	if not frappe.db.exists("Salary Component", PERSONAL_SOCIAL_SECURITY_COMPONENT):
+		result.warning = "工资构成「社保-个人」不存在，未扣社保。"
+		return result
+
+	result.touched = (
+		_set_component_amount(
+			doc,
+			"deductions",
+			PERSONAL_SOCIAL_SECURITY_COMPONENT,
+			amount,
+			preserve_zero=False,
+			append_missing=True,
+		)
+		or result.touched
+	)
+	result.personal_amount = amount
+	return result
 
 
 def _apply_non_worker_salary_adjustments(doc, factors, structure):
@@ -907,11 +965,16 @@ def apply_attendance_payroll_adjustments_to_salary_slip(doc, method=None):
 	if _salary_structure_for_slip(doc) in NON_WORKER_STRUCTURES:
 		amount = 0
 	touched_overtime = _set_earning_component_amount(doc, OVERTIME_COMPONENT, amount, preserve_zero=True)
-	if cint(factors.attendance_count) or touched_overtime:
+	social_security = _apply_social_security_adjustment(doc)
+	if cint(factors.attendance_count) or touched_overtime or social_security.touched:
 		_refresh_salary_totals(doc)
 		doc.compute_year_to_date()
 		doc.compute_month_to_date()
 		doc.compute_component_wise_year_to_date()
+	return frappe._dict(
+		social_security_personal_amount=social_security.personal_amount,
+		social_security_warning=social_security.warning,
+	)
 
 
 def apply_overtime_to_salary_slip(doc, method=None):

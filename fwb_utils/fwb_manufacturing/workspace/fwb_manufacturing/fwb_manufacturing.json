@@ -197,7 +197,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "考勤工资参数",
-   "link_count": 3,
+   "link_count": 4,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -230,6 +230,17 @@
    "label": "薪资考勤参数",
    "link_count": 0,
    "link_to": "Payroll Attendance Parameter",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "社保缴费参数",
+   "link_count": 0,
+   "link_to": "Payroll Social Security Parameter",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"

@@ -1,0 +1,52 @@
+{
+ "actions": [],
+ "creation": "2026-06-05 00:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "rules_section",
+  "rules"
+ ],
+ "fields": [
+  {
+   "fieldname": "rules_section",
+   "fieldtype": "Section Break",
+   "label": "社保个人扣款规则"
+  },
+  {
+   "description": "按工资单开始日期取最近一条已启用规则。这里只维护个人社保固定扣款，不维护单位承担金额。",
+   "fieldname": "rules",
+   "fieldtype": "Table",
+   "label": "社保缴费规则",
+   "options": "Payroll Social Security Rule"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fwb Manufacturing",
+ "name": "Payroll Social Security Parameter",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
