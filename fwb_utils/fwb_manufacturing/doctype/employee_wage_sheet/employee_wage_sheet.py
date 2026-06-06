@@ -9,6 +9,7 @@
 # - New: on new (including amendment) always clear salary_slip to avoid linking to cancelled slips
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt, cint, getdate
 
@@ -664,3 +665,53 @@ def make_salary_slip_from_wage_sheet(wage_sheet: str) -> dict:
         "salary_slip": ss.name,
         "total_amount": target_amount,
     }
+
+
+def _reset_wage_sheets_for_slip(slip_name) -> list:
+    """清空所有指向该 Salary Slip 的 Employee Wage Sheet 链接，并复位『已生成工资单』状态。
+
+    与 make_salary_slip_from_wage_sheet 的「建链」对称：删除/取消工资单时「解链」。
+    - salary_slip 一律清空（防止挡住工资单删除，或指向已取消单挡住重新生成）。
+    - 仅当 status == "已生成工资单" 时改状态：提交态工资表 → "已确认"，草稿态 → "草稿"；
+      其它状态不动，避免覆盖意外值。
+    - 用 frappe.db.set_value(update_modified=False)（等价 db_set），不触发 docstatus 校验、不改 modified。
+    手工录入的明细行（罚款/补贴/手改金额）完全保留。
+
+    返回受影响的 Employee Wage Sheet 名列表（用于消息提示）。
+    """
+    if not slip_name:
+        return []
+
+    affected = frappe.get_all(
+        "Employee Wage Sheet",
+        filters={"salary_slip": slip_name},
+        fields=["name", "docstatus", "status"],
+    )
+
+    for ws in affected:
+        frappe.db.set_value(
+            "Employee Wage Sheet", ws.name, "salary_slip", None, update_modified=False
+        )
+        if ws.status == "已生成工资单":
+            new_status = "已确认" if ws.docstatus == 1 else "草稿"
+            frappe.db.set_value(
+                "Employee Wage Sheet", ws.name, "status", new_status, update_modified=False
+            )
+
+    return [ws.name for ws in affected]
+
+
+def on_salary_slip_unlink(doc, method=None):
+    """Salary Slip 的 on_trash / on_cancel 钩子：解除并复位关联的员工工资表。
+
+    on_trash 在 Frappe delete_doc 的链接完整性检查之前执行，因此这里清空
+    Employee Wage Sheet.salary_slip 后，删除即可放行；on_cancel 复位后可立即重新生成工资单。
+    """
+    names = _reset_wage_sheets_for_slip(doc.name)
+    if names:
+        frappe.msgprint(
+            _("已解除工资单 {0} 与员工工资表 {1} 的关联，工资表状态已复位为「已确认」，手工录入明细已保留。").format(
+                doc.name, "、".join(names)
+            ),
+            alert=True,
+        )

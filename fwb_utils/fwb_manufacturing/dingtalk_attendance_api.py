@@ -1259,22 +1259,95 @@ def _resolve_monthly_sync_window(settings, now):
 	return frappe._dict(run=True, reason="ok", from_date=from_date, to_date=to_date, target=target)
 
 
+def _collect_monthly_recipients(settings):
+	"""去重收集月度通知收件人(User.name)，跳过空行。"""
+	recipients = []
+	for row in settings.get("monthly_sync_recipients") or []:
+		user = (row.get("user") or "").strip()
+		if user and user not in recipients:
+			recipients.append(user)
+	return recipients
+
+
+def _build_monthly_sync_message(target, stat=None, error=None, now_text=None, duration=None):
+	"""纯逻辑：构造月度核对站内通知的 (subject, html)。成功给明细，失败给告警。"""
+	if error:
+		safe = str(error).replace("<", "&lt;").replace(">", "&gt;")
+		subject = f"月度考勤核对失败：{target}"
+		html = (
+			f"<b>月度考勤核对失败</b><br>核对月份：{target}<br>"
+			f"触发时间：{now_text or ''}<br>错误：{safe}<br>详情见 Error Log。"
+		)
+		return subject, html
+	stat = stat or {}
+
+	def g(key):
+		return cint(stat.get(key) or 0)
+
+	created = g("created_attendance")
+	amended = g("updated_draft_attendance") + g("amended_attendance")
+	unmatched = stat.get("unmatched_user_ids") or []
+	no_structure = stat.get("no_structure") or []
+	subject = f"月度考勤核对完成：{target}（新建{created} 修订{amended}）"
+	rows = [
+		"<b>月度考勤核对完成</b>",
+		f"核对月份：{target}",
+		f"触发时间：{now_text or ''}",
+		f"耗时：{cint(duration or 0)} 秒",
+		f"API 调用：{g('api_calls')} 次（含考勤组 {g('group_name_api_calls')} / 带薪假 {g('paid_leave_api_calls')}）",
+		f"新建考勤：{created}",
+		f"修订考勤：{amended}（草稿 {g('updated_draft_attendance')} / 提交修订 {g('amended_attendance')}）",
+		f"无变化：{g('unchanged_attendance')}",
+		f"锁定跳过：{g('skipped_locked_attendance')}",
+		f"新建签到流水：{g('created_checkins')}",
+		f"未匹配员工：{len(unmatched)}" + (f"（{', '.join(map(str, unmatched))}）" if unmatched else ""),
+		f"无SSA结构员工：{len(no_structure)}" + (f"（{', '.join(map(str, no_structure))}）" if no_structure else ""),
+	]
+	return subject, "<br>".join(rows)
+
+
+def _notify_monthly_sync(settings, target, stat=None, error=None, now_text=None, duration=None):
+	"""给配置的收件人发月度核对站内通知。收件人空=不发；逐人 try/except 互不影响、不影响同步。"""
+	recipients = _collect_monthly_recipients(settings)
+	if not recipients:
+		return 0
+	subject, html = _build_monthly_sync_message(target, stat=stat, error=error, now_text=now_text, duration=duration)
+	sent = 0
+	for user in recipients:
+		try:
+			note = frappe.new_doc("Notification Log")
+			note.subject = subject
+			note.email_content = html
+			note.for_user = user
+			note.type = "Alert"
+			note.insert(ignore_permissions=True)
+			sent += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "月度核对站内通知失败")
+	return sent
+
+
 def sync_monthly_dingtalk_attendance():
-	"""Scheduler hourly 入口：到配置的(日,时)时，整月核对上个自然月、全员（只刷新 Attendance）。
+	"""Scheduler hourly 入口：到配置的(日,时)时，整月核对上个自然月、全员（只刷新 Attendance），并给收件人发站内通知。
 
 	每小时触发，未开启/未到点/本月已执行均立即 no-op、不调 API。锁定考勤由 force_locked=False 自动不覆盖。"""
 	settings = _get_settings()
 	window = _resolve_monthly_sync_window(settings, now_datetime())
 	if not window.run:
 		return {"skipped": window.reason}
+	started = now_datetime()
+	started_text = started.strftime("%Y-%m-%d %H:%M")
 	try:
 		employee_map, _employee_rows = _employee_map()
 		client = _client_from_settings(settings)
 		stat = _sync_date_range(client, settings, window.from_date, window.to_date, employee_map)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "月度考勤核对同步失败")
+		_notify_monthly_sync(settings, window.target, error="同步异常，详见 Error Log", now_text=started_text)
 		return {"error": "monthly sync failed; see Error Log"}
 	frappe.db.set_single_value("Dingtalk Attendance Settings", "last_monthly_sync_for", window.target)
+	duration = int((now_datetime() - started).total_seconds())
+	_notify_monthly_sync(settings, window.target, stat=stat, now_text=started_text, duration=duration)
 	return stat
 
 

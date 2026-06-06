@@ -9,7 +9,9 @@ from frappe.utils import flt
 
 from fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet import (
 	_collect_aggregated_rows,
+	_reset_wage_sheets_for_slip,
 	generate_wage_details,
+	on_salary_slip_unlink,
 )
 from fwb_utils.tests.factories import (
 	ensure_test_employee,
@@ -392,3 +394,80 @@ class TestEmployeeWageSheet(FrappeTestCase):
 		ws.reload()
 		self.assertEqual(result["total_duration_seconds"], 5400)
 		self.assertEqual(ws.total_duration_seconds, 5400)
+
+	# --- Salary Slip 删除/取消 → 解链复位（保留手工明细）回归 ---
+
+	def _make_wage_sheet_linked_to_slip(self, employee, slip_name, *, submit=True):
+		"""造一张带手工明细、并(模拟 make_salary_slip 建链)指向 slip_name 的工资表。"""
+		ws = frappe.get_doc(
+			{
+				"doctype": "Employee Wage Sheet",
+				"employee": employee.name,
+				"employee_name": employee.employee_name,
+				"from_date": "2026-06-01",
+				"to_date": "2026-06-30",
+				"details": [
+					{"product_name": "手工罚款", "qty": 1, "rate": 50, "amount": 50, "is_penalty": 1},
+				],
+			}
+		).insert(ignore_permissions=True)
+		if submit:
+			ws.submit()
+		# 模拟 make_salary_slip_from_wage_sheet 的建链：db_set salary_slip + status
+		frappe.db.set_value(
+			"Employee Wage Sheet", ws.name, "salary_slip", slip_name, update_modified=False
+		)
+		frappe.db.set_value(
+			"Employee Wage Sheet", ws.name, "status", "已生成工资单", update_modified=False
+		)
+		ws.reload()
+		return ws
+
+	def test_reset_unlinks_and_restores_confirmed_status(self):
+		"""删除/取消工资单 → 提交态工资表 salary_slip 清空、状态 已生成工资单→已确认、手工明细保留。"""
+		employee = ensure_test_employee(
+			"wage-unlink-confirmed@example.com", employee_name="Unlink Confirmed"
+		)
+		ws = self._make_wage_sheet_linked_to_slip(employee, "FAKE-SLIP-CONFIRMED")
+		self.assertEqual(ws.docstatus, 1)
+		self.assertEqual(ws.salary_slip, "FAKE-SLIP-CONFIRMED")
+		self.assertEqual(ws.status, "已生成工资单")
+		detail_count = len(ws.details)
+
+		affected = _reset_wage_sheets_for_slip("FAKE-SLIP-CONFIRMED")
+		self.assertIn(ws.name, affected)
+
+		ws.reload()
+		self.assertFalse(ws.salary_slip)
+		self.assertEqual(ws.status, "已确认")
+		self.assertEqual(len(ws.details), detail_count)  # 手工录入明细完整保留
+		self.assertEqual(ws.details[0].product_name, "手工罚款")
+
+	def test_reset_draft_wage_sheet_goes_back_to_draft(self):
+		"""草稿态工资表复位回「草稿」（防御性分支）。"""
+		employee = ensure_test_employee(
+			"wage-unlink-draft@example.com", employee_name="Unlink Draft"
+		)
+		ws = self._make_wage_sheet_linked_to_slip(employee, "FAKE-SLIP-DRAFT", submit=False)
+		self.assertEqual(ws.docstatus, 0)
+
+		_reset_wage_sheets_for_slip("FAKE-SLIP-DRAFT")
+
+		ws.reload()
+		self.assertFalse(ws.salary_slip)
+		self.assertEqual(ws.status, "草稿")
+
+	def test_reset_noop_when_no_linked_wage_sheet(self):
+		"""无关联工资表 / 空 slip 名 → 返回空列表、不报错。"""
+		self.assertEqual(_reset_wage_sheets_for_slip("NON-EXISTENT-SLIP-XYZ"), [])
+		self.assertEqual(_reset_wage_sheets_for_slip(None), [])
+		self.assertEqual(_reset_wage_sheets_for_slip(""), [])
+
+	def test_on_salary_slip_unlink_passes_doc_name_to_reset(self):
+		"""钩子把 doc.name 传给复位函数（on_trash / on_cancel 共用）。"""
+		with patch(
+			"fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet._reset_wage_sheets_for_slip",
+			return_value=[],
+		) as mock_reset:
+			on_salary_slip_unlink(frappe._dict(name="SOME-SLIP"))
+		mock_reset.assert_called_once_with("SOME-SLIP")

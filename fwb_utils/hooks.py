@@ -14,6 +14,11 @@ doc_events = {
         "on_submit": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_submit",
         "on_cancel": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_cancel",
     },
+    # 计件工资单删除/取消时，自动解除并复位关联的 Employee Wage Sheet（清空 salary_slip + 状态复位为「已确认」）
+    "Salary Slip": {
+        "on_trash": "fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet.on_salary_slip_unlink",
+        "on_cancel": "fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet.on_salary_slip_unlink",
+    },
 }
 
 scheduler_events = {
