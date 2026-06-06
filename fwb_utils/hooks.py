@@ -30,6 +30,10 @@ scheduler_events = {
         "10 5 * * *": [
             "fwb_utils.fwb_manufacturing.dingtalk_attendance_api.sync_rolling_dingtalk_attendance"
         ],
+        # 月度核对：每小时触发，由 enable_monthly_sync + 触发日(1-28)/时(0-23) 控制；未到点立即 no-op，不调 API
+        "0 * * * *": [
+            "fwb_utils.fwb_manufacturing.dingtalk_attendance_api.sync_monthly_dingtalk_attendance"
+        ],
     }
 }
 

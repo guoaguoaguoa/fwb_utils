@@ -175,12 +175,36 @@ def pivot_to_matrix(rows, start_date, end_date):
 	return days, list(emps.values())
 
 
+def department_filter_names(department):
+	"""部门树过滤展开：返回该部门及其所有子孙部门名（含自身）。
+
+	`Department` 是 ERPNext 树（nested set，有 lft/rgt）。员工/考勤只挂在叶子部门，
+	group 父节点（如「办公职能 - 富锐」）本身没有任何 Attendance；若对父节点做精确匹配会得到空表。
+	这里用 nested set 把父节点展开成整段子树（采购/运营/财务/行政/销售/内贸/外贸…），
+	按父节点查询即可显示其全部下属（含多层嵌套，如「销售部」下的内贸/外贸）。
+	叶子节点的子树只有自身 → 等价于精确匹配，向后兼容。
+	查不到 lft/rgt（部门不存在或树未构建）时回退为 [department]，保持旧的精确匹配行为。
+	"""
+	if not department:
+		return []
+	bounds = frappe.db.get_value("Department", department, ["lft", "rgt"])
+	if not bounds or bounds[0] is None or bounds[1] is None:
+		return [department]
+	lft, rgt = bounds
+	names = frappe.db.get_all(
+		"Department",
+		filters={"lft": [">=", lft], "rgt": ["<=", rgt]},
+		pluck="name",
+	)
+	return names or [department]
+
+
 def get_attendance_rows(filters):
 	"""薄查询层：按筛选取 Attendance(+自定义字段)，按 员工→日期 排序；可选只看异常/加班。"""
 	filters = frappe._dict(filters or {})
 	conds = ["docstatus < 2"]
 	params = {}
-	for field in ("from_date", "to_date", "employee", "department", "shift", "company"):
+	for field in ("from_date", "to_date", "employee", "shift", "company"):
 		val = filters.get(field)
 		if not val:
 			continue
@@ -191,6 +215,18 @@ def get_attendance_rows(filters):
 		else:
 			conds.append(f"{field} = %({field})s")
 		params[field] = val
+
+	# 部门按树展开：选 group 父节点（如「办公职能」）时含其全部子孙部门，
+	# 否则父节点上没有任何 Attendance（只挂叶子部门）会查不到任何人。详见 department_filter_names。
+	dept_names = department_filter_names(filters.get("department"))
+	if dept_names:
+		dept_keys = []
+		for i, name in enumerate(dept_names):
+			key = f"dept_{i}"
+			params[key] = name
+			dept_keys.append(f"%({key})s")
+		conds.append(f"department in ({', '.join(dept_keys)})")
+
 	rows = frappe.db.sql(
 		f"""
 		select employee, employee_name, department, shift, attendance_date, status,

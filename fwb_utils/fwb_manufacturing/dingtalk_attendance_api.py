@@ -18,11 +18,15 @@ import requests
 from frappe import _
 from frappe.utils import (
 	add_days,
+	add_months,
 	cint,
 	convert_utc_to_system_timezone,
 	flt,
 	get_datetime,
+	get_first_day,
+	get_last_day,
 	getdate,
+	now_datetime,
 	nowdate,
 )
 
@@ -1001,6 +1005,50 @@ def sync_rolling_dingtalk_attendance():
 	employee_map, _employee_rows = _employee_map()
 	client = _client_from_settings(settings)
 	return _sync_date_range(client, settings, from_date, to_date, employee_map)
+
+
+def _resolve_monthly_sync_window(settings, now):
+	"""纯逻辑：按设置 + 当前时间判断月度核对是否该跑，并算上个自然月范围。
+
+	settings 用 .get 取值（Document 或 dict 均可）。返回 run/reason/from_date/to_date/target。
+	不预制值：未开启、或触发日不在 1-28、或触发时不在 0-23 → run=False（安全 no-op）。"""
+	if not cint(settings.get("enable_monthly_sync")):
+		return frappe._dict(run=False, reason="月度同步未开启")
+	day = cint(settings.get("monthly_sync_day"))
+	hour = cint(settings.get("monthly_sync_hour"))
+	if not (1 <= day <= 28):
+		return frappe._dict(run=False, reason="月度触发日未配置(应为 1-28)")
+	if not (0 <= hour <= 23):
+		return frappe._dict(run=False, reason="月度触发时未配置(应为 0-23)")
+	if now.day != day:
+		return frappe._dict(run=False, reason=f"今天({now.day})非触发日({day})")
+	if now.hour != hour:
+		return frappe._dict(run=False, reason=f"当前({now.hour}时)非触发时({hour}时)")
+	from_date = get_first_day(add_months(getdate(now), -1))
+	to_date = get_last_day(from_date)
+	target = from_date.strftime("%Y-%m")
+	if str(settings.get("last_monthly_sync_for") or "") == target:
+		return frappe._dict(run=False, reason=f"{target} 本月已执行")
+	return frappe._dict(run=True, reason="ok", from_date=from_date, to_date=to_date, target=target)
+
+
+def sync_monthly_dingtalk_attendance():
+	"""Scheduler hourly 入口：到配置的(日,时)时，整月核对上个自然月、全员（只刷新 Attendance）。
+
+	每小时触发，未开启/未到点/本月已执行均立即 no-op、不调 API。锁定考勤由 force_locked=False 自动不覆盖。"""
+	settings = _get_settings()
+	window = _resolve_monthly_sync_window(settings, now_datetime())
+	if not window.run:
+		return {"skipped": window.reason}
+	try:
+		employee_map, _employee_rows = _employee_map()
+		client = _client_from_settings(settings)
+		stat = _sync_date_range(client, settings, window.from_date, window.to_date, employee_map)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "月度考勤核对同步失败")
+		return {"error": "monthly sync failed; see Error Log"}
+	frappe.db.set_single_value("Dingtalk Attendance Settings", "last_monthly_sync_for", window.target)
+	return stat
 
 
 @frappe.whitelist()
