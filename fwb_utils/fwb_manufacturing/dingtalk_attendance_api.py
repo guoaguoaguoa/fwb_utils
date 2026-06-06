@@ -48,6 +48,7 @@ from fwb_utils.fwb_manufacturing.dingtalk_attendance import (
 	is_paid_dingtalk_leave,
 	missed_whole_half,
 )
+from fwb_utils.fwb_manufacturing.attendance_report_utils import department_filter_names
 
 ACCESS_TOKEN_URL = "https://api.dingtalk.com/v1.0/oauth2/accessToken"
 ATTENDANCE_RESULT_URL = "https://oapi.dingtalk.com/attendance/list"
@@ -572,7 +573,9 @@ def _build_attendance_values(employee, attendance_date, records, group_name_map=
 	in_min = _minutes_from_time_value(in_time)
 	out_min = _minutes_from_time_value(out_time)
 	whole_half_missed = missed_whole_half(in_min, out_min, profile) if both_punches else True
-	meal_days = 1.0 if (actual_attendance_days == 1.0 and not leave_days and not whole_half_missed) else 0.0
+	meal_days = 0.0 if is_regular else (
+		1.0 if (actual_attendance_days == 1.0 and not leave_days and not whole_half_missed) else 0.0
+	)
 	minute_factors = calculate_late_early_minutes(
 		in_time=in_time,
 		out_time=out_time,
@@ -935,6 +938,230 @@ def _require_hr_manager():
 	roles = set(frappe.get_roles())
 	if not ({"System Manager", "HR Manager"} & roles):
 		frappe.throw(_("只有 System Manager 或 HR Manager 可以同步钉钉考勤。"), frappe.PermissionError)
+
+
+def _require_system_manager():
+	if frappe.session.user == "Administrator":
+		return
+	roles = set(frappe.get_roles())
+	if "System Manager" not in roles:
+		frappe.throw(_("只有 System Manager 可以重算考勤结算字段。"), frappe.PermissionError)
+
+
+def _month_bounds(month):
+	month_text = str(month or "").strip()
+	if not re.fullmatch(r"\d{4}-\d{2}", month_text):
+		frappe.throw(_("月份必须使用 YYYY-MM 格式。"))
+	from_date = getdate(f"{month_text}-01")
+	return month_text, from_date, get_last_day(from_date)
+
+
+def _normalize_scope(scope):
+	scope = str(scope or "").strip()
+	aliases = {
+		"employee": "指定员工",
+		"employees": "指定员工",
+		"department": "指定部门",
+		"all": "全员",
+	}
+	scope = aliases.get(scope.lower(), scope)
+	if scope not in {"指定员工", "指定部门", "全员"}:
+		frappe.throw(_("重算范围必须是：指定员工、指定部门、全员。"))
+	return scope
+
+
+def _normalize_employee_names(employees):
+	values = _as_list(employees)
+	names = []
+	for value in values:
+		if isinstance(value, dict):
+			value = value.get("value") or value.get("name") or value.get("employee")
+		for part in re.split(r"[,，\n]+", str(value or "")):
+			name = part.strip()
+			if name and name not in names:
+				names.append(name)
+	return names
+
+
+def _attendance_rows_for_recalculation(month, scope, employees=None, department=None):
+	month_text, from_date, to_date = _month_bounds(month)
+	scope = _normalize_scope(scope)
+	params = {"from_date": from_date, "to_date": to_date}
+	conditions = [
+		"a.docstatus = 1",
+		"a.attendance_date between %(from_date)s and %(to_date)s",
+		"e.status = 'Active'",
+	]
+
+	if scope == "指定员工":
+		employee_names = _normalize_employee_names(employees)
+		if not employee_names:
+			frappe.throw(_("请选择需要重算的员工。"))
+		conditions.append("a.employee in %(employees)s")
+		params["employees"] = tuple(employee_names)
+	elif scope == "指定部门":
+		if not department:
+			frappe.throw(_("请选择需要重算的部门。"))
+		department_names = department_filter_names(department)
+		conditions.append("e.department in %(departments)s")
+		params["departments"] = tuple(department_names or [department])
+
+	rows = frappe.db.sql(
+		"""
+		select
+			a.name,
+			a.employee,
+			e.employee_name,
+			e.department,
+			a.attendance_date,
+			a.status,
+			a.in_time,
+			a.out_time,
+			a.custom_actual_attendance_days,
+			a.custom_overtime_days,
+			a.custom_meal_allowance_days,
+			a.custom_dingtalk_paid_leave_days,
+			a.custom_dingtalk_unpaid_leave_days,
+			a.custom_dingtalk_sync_locked
+		from `tabAttendance` a
+		inner join `tabEmployee` e on e.name = a.employee
+		where {conditions}
+		order by a.attendance_date, e.employee_name, a.name
+		""".format(conditions=" and ".join(conditions)),
+		params,
+		as_dict=True,
+	)
+	return month_text, from_date, to_date, rows
+
+
+def _actual_attendance_days_from_row(row):
+	if row.custom_actual_attendance_days is not None:
+		return flt(row.custom_actual_attendance_days)
+	if row.status == "Present":
+		return 1.0
+	if row.status == "Half Day":
+		return 0.5
+	return 0.0
+
+
+def _recalculated_meal_days(row, is_regular):
+	if is_regular:
+		return 0.0
+	leave_days = flt(row.custom_dingtalk_paid_leave_days) + flt(row.custom_dingtalk_unpaid_leave_days)
+	if leave_days:
+		return 0.0
+	if row.status != "Present" or _actual_attendance_days_from_row(row) != 1.0:
+		return 0.0
+	profile = _schedule_profile_for(False)
+	in_min = _minutes_from_time_value(row.in_time)
+	out_min = _minutes_from_time_value(row.out_time)
+	if missed_whole_half(in_min, out_min, profile):
+		return 0.0
+	return 1.0
+
+
+def _attendance_payroll_recalculation(row):
+	structure = _employee_structure(row.employee, row.attendance_date)
+	is_regular = structure == REGULAR_WORKER_STRUCTURE
+	overtime_days = daily_overtime_days(_hhmm(row.out_time), row.status == "Absent", is_regular)
+	meal_days = _recalculated_meal_days(row, is_regular)
+	return frappe._dict(
+		structure=structure,
+		is_regular=is_regular,
+		overtime_days=flt(overtime_days),
+		meal_allowance_days=flt(meal_days),
+	)
+
+
+def _attendance_payroll_fields_changed(row, values):
+	return (
+		abs(flt(row.custom_overtime_days) - flt(values.overtime_days)) > 0.0001
+		or abs(flt(row.custom_meal_allowance_days) - flt(values.meal_allowance_days)) > 0.0001
+	)
+
+
+def _recalculation_sample(row, values):
+	return {
+		"attendance": row.name,
+		"employee": row.employee,
+		"employee_name": row.employee_name,
+		"department": row.department,
+		"attendance_date": str(getdate(row.attendance_date)),
+		"salary_structure": values.structure,
+		"is_regular_worker": 1 if values.is_regular else 0,
+		"old_overtime_days": flt(row.custom_overtime_days),
+		"new_overtime_days": flt(values.overtime_days),
+		"old_meal_allowance_days": flt(row.custom_meal_allowance_days),
+		"new_meal_allowance_days": flt(values.meal_allowance_days),
+	}
+
+
+@frappe.whitelist()
+def recalculate_attendance_payroll_fields(
+	month=None,
+	scope="指定员工",
+	employees=None,
+	department=None,
+	include_locked=0,
+	dry_run=1,
+):
+	"""重算已提交 Attendance 的工资结算字段；只处理本地数据，不调用钉钉 API。"""
+	_require_system_manager()
+	scope = _normalize_scope(scope)
+	month_text, from_date, to_date, rows = _attendance_rows_for_recalculation(
+		month,
+		scope,
+		employees=employees,
+		department=department,
+	)
+	include_locked = cint(include_locked)
+	dry_run = cint(dry_run)
+	employee_names = {row.employee for row in rows}
+	stat = frappe._dict(
+		month=month_text,
+		from_date=str(from_date),
+		to_date=str(to_date),
+		scope=scope,
+		employee_count=len(employee_names),
+		attendance_count=len(rows),
+		changed_count=0,
+		updated_count=0,
+		unchanged_count=0,
+		skipped_count=0,
+		skipped_locked_count=0,
+		samples=[],
+	)
+
+	for row in rows:
+		if cint(row.custom_dingtalk_sync_locked) and not include_locked:
+			stat.skipped_count += 1
+			stat.skipped_locked_count += 1
+			continue
+
+		values = _attendance_payroll_recalculation(row)
+		if not _attendance_payroll_fields_changed(row, values):
+			stat.unchanged_count += 1
+			continue
+
+		stat.changed_count += 1
+		if len(stat.samples) < 10:
+			stat.samples.append(_recalculation_sample(row, values))
+
+		if dry_run:
+			continue
+
+		frappe.db.set_value(
+			"Attendance",
+			row.name,
+			{
+				"custom_overtime_days": values.overtime_days,
+				"custom_meal_allowance_days": values.meal_allowance_days,
+			},
+			update_modified=True,
+		)
+		stat.updated_count += 1
+
+	return stat
 
 
 @frappe.whitelist()

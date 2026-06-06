@@ -401,7 +401,9 @@ def _upsert_attendance(emp, date, status, parsed, company, is_regular=False):
 	in_min = _minutes_from_time_value(in_dt)
 	out_min = _minutes_from_time_value(out_dt)
 	whole_half_missed = missed_whole_half(in_min, out_min, profile) if has_both else True
-	meal_days = 1.0 if (actual_attendance_days == 1.0 and not leave_days and not whole_half_missed) else 0.0
+	meal_days = 0.0 if is_regular else (
+		1.0 if (actual_attendance_days == 1.0 and not leave_days and not whole_half_missed) else 0.0
+	)
 	minute_factors = calculate_late_early_minutes(
 		in_time=in_dt,
 		out_time=out_dt,
