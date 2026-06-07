@@ -13,3 +13,4 @@ fwb_utils.patches.v15_0.payroll_holiday_quota_year
 fwb_utils.patches.v15_0.reorder_salary_structure_detail_rows
 fwb_utils.patches.v15_0.payroll_social_security_parameter
 fwb_utils.patches.v15_0.reload_fwb_manufacturing_workspace
+fwb_utils.patches.v15_0.hide_legacy_wage_workspace_links

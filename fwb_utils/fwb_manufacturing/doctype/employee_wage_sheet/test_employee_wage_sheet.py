@@ -13,9 +13,16 @@ from fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet
 	generate_wage_details,
 	on_salary_slip_unlink,
 )
+from fwb_utils.fwb_manufacturing.salary_slip_piece_wage import (
+	PIECE_WAGE_COMPONENT,
+	PIECE_WAGE_DETAIL_FIELD,
+	PIECE_WAGE_STRUCTURE,
+	generate_piece_wage_details_for_salary_slip,
+)
 from fwb_utils.tests.factories import (
 	ensure_test_employee,
 	ensure_test_workstation,
+	get_existing_company,
 	make_fwb_work_report,
 	make_rework_record,
 )
@@ -471,3 +478,267 @@ class TestEmployeeWageSheet(FrappeTestCase):
 		) as mock_reset:
 			on_salary_slip_unlink(frappe._dict(name="SOME-SLIP"))
 		mock_reset.assert_called_once_with("SOME-SLIP")
+
+
+class TestSalarySlipPieceWage(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		cls.enable_safe_exec()
+		super().setUpClass()
+
+	def setUp(self):
+		self.company = get_existing_company()
+		self.holiday_list = self._ensure_holiday_list()
+		self.employee = ensure_test_employee(
+			"salary-slip-piece@example.com",
+			employee_name="Salary Slip Piece",
+			date_of_joining="2026-01-01",
+			holiday_list=self.holiday_list,
+		)
+		frappe.db.delete("Salary Slip", {"employee": self.employee.name})
+		frappe.db.delete("Salary Structure Assignment", {"employee": self.employee.name})
+		self._ensure_piece_component()
+
+	def _ensure_holiday_list(self):
+		name = "测试计件工资单节假日表"
+		if frappe.db.exists("Holiday List", name):
+			return name
+		holiday_list = frappe.get_doc(
+			{
+				"doctype": "Holiday List",
+				"holiday_list_name": name,
+				"from_date": "2026-01-01",
+				"to_date": "2026-12-31",
+				"holidays": [],
+			}
+		)
+		holiday_list.insert(ignore_permissions=True)
+		return holiday_list.name
+
+	def _ensure_piece_component(self):
+		if frappe.db.exists("Salary Component", PIECE_WAGE_COMPONENT):
+			return
+		frappe.get_doc(
+			{
+				"doctype": "Salary Component",
+				"salary_component": PIECE_WAGE_COMPONENT,
+				"salary_component_abbr": "PWC",
+				"type": "Earning",
+			}
+		).insert(ignore_permissions=True)
+
+	def _ensure_salary_structure_assignment(self, structure):
+		self.assertTrue(
+			frappe.db.exists("Salary Structure", structure),
+			f"Salary Structure {structure} must exist for payroll tests",
+		)
+		ssa = frappe.get_doc(
+			{
+				"doctype": "Salary Structure Assignment",
+				"employee": self.employee.name,
+				"salary_structure": structure,
+				"company": self.company,
+				"from_date": "2026-01-01",
+				"base": 0,
+			}
+		)
+		ssa.insert(ignore_permissions=True)
+		ssa.submit()
+		return ssa.name
+
+	def _draft_salary_slip(self, structure=PIECE_WAGE_STRUCTURE):
+		self._ensure_salary_structure_assignment(structure)
+		slip = frappe.get_doc(
+			{
+				"doctype": "Salary Slip",
+				"employee": self.employee.name,
+				"company": self.company,
+				"posting_date": "2026-04-30",
+				"start_date": "2026-04-01",
+				"end_date": "2026-04-30",
+				"payroll_frequency": "Monthly",
+				"salary_structure": structure,
+			}
+		)
+		slip.insert(ignore_permissions=True)
+		return slip
+
+	def test_salary_slip_piece_wage_custom_fields_are_available(self):
+		meta = frappe.get_meta("Salary Slip")
+
+		self.assertEqual(meta.get_field("custom_piece_wage_total_qty").label, "总有效数量")
+		self.assertEqual(meta.get_field("custom_piece_wage_total_duration_seconds").label, "总用工时")
+		self.assertEqual(meta.get_field("custom_piece_wage_total_amount").label, "总金额")
+
+		details = meta.get_field(PIECE_WAGE_DETAIL_FIELD)
+		self.assertIsNotNone(details)
+		self.assertEqual(details.fieldtype, "Table")
+		self.assertEqual(details.options, "Employee Wage Sheet Detail")
+
+		legacy = meta.get_field("custom_manufacturing_wage_details")
+		self.assertIsNotNone(legacy)
+		self.assertEqual(legacy.options, "Manufacturing Wage Detail")
+
+	def test_generate_piece_wage_details_preserves_manual_rows_and_updates_salary_slip(self):
+		slip = self._draft_salary_slip()
+		workstation = ensure_test_workstation("Test Salary Slip Piece Station")
+		report = make_fwb_work_report(
+			employee=self.employee.name,
+			workstation=workstation.name,
+			qty=8,
+		)
+
+		slip.append(
+			PIECE_WAGE_DETAIL_FIELD,
+			{
+				"product_name": "手工补贴",
+				"qty": 1,
+				"rate": 20,
+				"amount": 20,
+			},
+		)
+		slip.append(
+			PIECE_WAGE_DETAIL_FIELD,
+			{
+				"source_work_report": report.name,
+				"workstation": workstation.name,
+				"product_name": "罚款",
+				"qty": 2,
+				"rate": 5,
+				"amount": 10,
+				"is_penalty": 1,
+				"remarks": "保留罚款金额",
+			},
+		)
+		slip.save(ignore_permissions=True)
+
+		generated_rows = [
+			frappe._dict(
+				{
+					"work_report": report.name,
+					"work_order": None,
+					"workstation": workstation.name,
+					"product_name": "计件报工",
+					"size_l": "",
+					"size_w": "",
+					"size_h": "",
+					"total_valid_qty": 8,
+					"total_defect_qty": 0,
+					"defect_rate": 0,
+					"total_duration_seconds": 0,
+					"rate": 3,
+				}
+			),
+			frappe._dict(
+				{
+					"work_report": report.name,
+					"work_order": None,
+					"workstation": workstation.name,
+					"product_name": "罚款",
+					"size_l": "",
+					"size_w": "",
+					"size_h": "",
+					"total_valid_qty": 2,
+					"total_defect_qty": 0,
+					"defect_rate": 0,
+					"total_duration_seconds": 0,
+					"rate": 0,
+					"is_penalty": 1,
+				}
+			),
+		]
+
+		with patch(
+			"fwb_utils.fwb_manufacturing.salary_slip_piece_wage._collect_aggregated_rows",
+			return_value=generated_rows,
+		):
+			result = generate_piece_wage_details_for_salary_slip(slip.name)
+
+		slip.reload()
+		details = slip.get(PIECE_WAGE_DETAIL_FIELD)
+		earnings = {row.salary_component: row for row in slip.earnings}
+
+		self.assertEqual(result["manual_rows"], 1)
+		self.assertEqual(result["generated_rows"], 2)
+		self.assertEqual(len(details), 3)
+		self.assertEqual(details[0].product_name, "手工补贴")
+		self.assertFalse(details[0].source_work_report)
+		self.assertEqual(details[1].source_work_report, report.name)
+		self.assertEqual(details[2].is_penalty, 1)
+		self.assertEqual(flt(details[2].rate), 5)
+		self.assertEqual(flt(details[2].amount), 10)
+		self.assertEqual(details[2].remarks, "保留罚款金额")
+		self.assertEqual(flt(slip.custom_piece_wage_total_qty), 11)
+		self.assertEqual(flt(slip.custom_piece_wage_total_amount), 34)
+		self.assertIn(PIECE_WAGE_COMPONENT, earnings)
+		self.assertEqual(flt(earnings[PIECE_WAGE_COMPONENT].amount), 34)
+		self.assertEqual(flt(earnings[PIECE_WAGE_COMPONENT].default_amount), 34)
+		self.assertEqual(flt(slip.net_pay), 34)
+		self.assertFalse(slip.get("custom_manufacturing_wage_details"))
+
+	def test_generate_piece_wage_details_rejects_non_piece_structure(self):
+		slip = self._draft_salary_slip("普工结构")
+
+		with self.assertRaises(frappe.ValidationError):
+			generate_piece_wage_details_for_salary_slip(slip.name)
+
+	def test_generate_piece_wage_details_rejects_submitted_salary_slip(self):
+		slip = self._draft_salary_slip()
+		frappe.db.set_value("Salary Slip", slip.name, "docstatus", 1, update_modified=False)
+
+		with self.assertRaises(frappe.ValidationError):
+			generate_piece_wage_details_for_salary_slip(slip.name)
+
+	def test_salary_slip_validate_syncs_manual_piece_rows(self):
+		slip = self._draft_salary_slip()
+		slip.append(
+			PIECE_WAGE_DETAIL_FIELD,
+			{
+				"product_name": "手工计时",
+				"qty": 1,
+				"rate": 30,
+				"duration_seconds": 3600,
+				"amount": 30,
+			},
+		)
+		slip.append(
+			PIECE_WAGE_DETAIL_FIELD,
+			{
+				"product_name": "手工罚款",
+				"qty": 1,
+				"rate": 5,
+				"amount": 5,
+				"is_penalty": 1,
+			},
+		)
+		slip.save(ignore_permissions=True)
+		slip.reload()
+
+		earnings = {row.salary_component: row for row in slip.earnings}
+
+		self.assertEqual(flt(slip.custom_piece_wage_total_qty), 2)
+		self.assertEqual(slip.custom_piece_wage_total_duration_seconds, 3600)
+		self.assertEqual(flt(slip.custom_piece_wage_total_amount), 25)
+		self.assertEqual(flt(earnings[PIECE_WAGE_COMPONENT].amount), 25)
+
+	def test_attendance_recalculate_preserves_piece_wage_component(self):
+		slip = self._draft_salary_slip()
+		slip.append(
+			PIECE_WAGE_DETAIL_FIELD,
+			{
+				"product_name": "手工计件",
+				"qty": 10,
+				"rate": 4,
+				"amount": 40,
+			},
+		)
+		slip.save(ignore_permissions=True)
+
+		from fwb_utils.fwb_manufacturing.dingtalk_attendance_api import recalculate_salary_slip_attendance
+
+		recalculate_salary_slip_attendance(slip.name)
+		slip.reload()
+		earnings = {row.salary_component: row.amount for row in slip.earnings}
+
+		self.assertEqual(flt(slip.custom_piece_wage_total_amount), 40)
+		self.assertEqual(flt(earnings[PIECE_WAGE_COMPONENT]), 40)

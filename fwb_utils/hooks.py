@@ -9,6 +9,10 @@ doctype_js = {
     "Salary Slip": "public/js/salary_slip.js",
 }
 
+doctype_list_js = {
+    "Salary Slip": "public/js/salary_slip_list.js",
+}
+
 doc_events = {
     "Work Order": {
         "on_submit": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_submit",
@@ -16,6 +20,8 @@ doc_events = {
     },
     # 计件工资单删除/取消时，自动解除并复位关联的 Employee Wage Sheet（清空 salary_slip + 状态复位为「已确认」）
     "Salary Slip": {
+        "before_validate": "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",
+        "validate": "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",
         "on_trash": "fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet.on_salary_slip_unlink",
         "on_cancel": "fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet.on_salary_slip_unlink",
     },
