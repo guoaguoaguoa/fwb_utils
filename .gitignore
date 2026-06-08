@@ -18,3 +18,4 @@ fwb_utils/tests/test_dingtalk_attendance_api.py
 fwb_utils/fwb_manufacturing/doctype/payroll_holiday_quota_year/test_payroll_holiday_quota_year.py
 fwb_utils/fwb_manufacturing/doctype/dingtalk_attendance_settings/test_dingtalk_attendance_settings.py
 fwb_utils/fwb_manufacturing/doctype/payroll_attendance_parameter/test_payroll_attendance_parameter.py
+fwb_utils/tests/test_rmb_capital.py

@@ -7,6 +7,7 @@ from frappe.utils import flt
 
 from fwb_utils.fwb_manufacturing.attendance_report_utils import (
 	attendance_result_summary,
+	color_for,
 	dept_short,
 	get_attendance_rows,
 	split_punches,
@@ -31,11 +32,10 @@ def get_columns():
 		{"label": "下班1", "fieldname": "punch2", "fieldtype": "Data", "width": 62},
 		{"label": "上班2", "fieldname": "punch3", "fieldtype": "Data", "width": 62},
 		{"label": "下班2", "fieldname": "punch4", "fieldtype": "Data", "width": 62},
-		{"label": "工时", "fieldname": "working_hours", "fieldtype": "Float", "width": 60, "precision": 1},
 		{"label": "加班时长(时)", "fieldname": "overtime_hours", "fieldtype": "Float", "width": 90, "precision": 1},
 		{"label": "加班天", "fieldname": "custom_overtime_days", "fieldtype": "Float", "width": 70, "precision": 2},
-		{"label": "迟到", "fieldname": "late", "fieldtype": "Data", "width": 60},
-		{"label": "早退", "fieldname": "early", "fieldtype": "Data", "width": 60},
+		{"label": "迟到(分)", "fieldname": "late", "fieldtype": "Data", "width": 64},
+		{"label": "早退(分)", "fieldname": "early", "fieldtype": "Data", "width": 64},
 		{"label": "部门", "fieldname": "department", "fieldtype": "Data", "width": 72},
 	]
 
@@ -43,6 +43,12 @@ def get_columns():
 def _hhmm(dt):
 	# in_time/out_time 是 Datetime → 取 HH:MM
 	return str(dt)[11:16] if dt else ""
+
+
+def _minutes_cell(value):
+	"""迟到/早退缺勤分钟 → 整数文案；0/空留白（让轻重可见：35 vs 270）。"""
+	m = flt(value)
+	return str(int(round(m))) if m else ""
 
 
 def _map_row(r):
@@ -57,12 +63,12 @@ def _map_row(r):
 		"punch2": p[1],
 		"punch3": p[2],
 		"punch4": p[3],
-		"working_hours": r.get("working_hours"),
 		"overtime_hours": flt(r.get("custom_overtime_days")) * 7,
 		"custom_overtime_days": r.get("custom_overtime_days"),
-		"late": "⚠迟到" if r.get("late_entry") else "",
-		"early": "⚠早退" if r.get("early_exit") else "",
+		"late": _minutes_cell(r.get("custom_late_minutes")),
+		"early": _minutes_cell(r.get("custom_early_minutes")),
 		"department": dept_short(r.get("department")),
+		"_bg": color_for(r),  # 服务端算色，前端直接用（单一口径，含被扣→红）
 	}
 
 
@@ -76,7 +82,7 @@ def get_data(filters):
 				{
 					"status_label": "小计",
 					"employee_name": agg["name"],
-					"attendance_result": f"实出勤 {agg['present']} 天 · 缺勤 {agg['absent']} 天 · 半天 {agg['half']} · 加班 {agg['ot_day_count']} 日 / {agg['ot_hours']:.1f} 时",
+					"attendance_result": f"实出勤 {agg['present']} 天 · 未到 {agg['absent']} 天 · 半天 {agg['half']} · 加班 {agg['ot_day_count']} 日 / {agg['ot_hours']:.1f} 时",
 					"overtime_hours": agg["ot_hours"],
 					"custom_overtime_days": agg["ot_day_count"],
 					"is_summary": 1,

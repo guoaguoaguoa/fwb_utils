@@ -15,24 +15,25 @@ from frappe.utils import add_days, getdate
 # 状态 → 中文标签 / 总览紧凑码
 STATUS_LABEL = {
 	"Present": "出勤",
-	"Absent": "缺勤",
+	"Absent": "未到",  # 没来/全缺卡/单边卡（无薪，非违规）；旷工另由 status_label 判为「旷工」
 	"Half Day": "半天",
 	"On Leave": "请假",
 	"Work From Home": "居家",
 }
 STATUS_CODE = {
 	"Present": "出",
-	"Absent": "缺",
+	"Absent": "未",  # 同上；旷工 → 「旷」
 	"Half Day": "半",
 	"On Leave": "假",
 	"Work From Home": "家",
 }
-# 填充色（浅色底 + 深色字；口径与 attendance_calendar.js get_css_class 对齐）
+# 填充色（浅色底 + 深色字）
 COLOR_GREEN = "#e6f4ea"  # 出勤
-COLOR_RED = "#fde7e9"  # 缺勤 / 旷工
+COLOR_RED = "#fde7e9"  # 旷工 / 迟到早退被扣（用户口径：红色只留给旷工和被扣）
 COLOR_YELLOW = "#fff4d6"  # 半天
 COLOR_BLUE = "#e7f0fd"  # 请假
-COLOR_GRAY = "#f2f2f2"  # 休息 / 无记录
+COLOR_NEUTRAL = "#faf4e6"  # 未到：没来/全缺卡（无薪，非违规）—— 真·米色，中性不报警，区别于灰
+COLOR_GRAY = "#f2f2f2"  # 休息 / 无记录（当天无考勤行）
 
 WEEKDAY_CN = ["一", "二", "三", "四", "五", "六", "日"]  # Monday=0
 
@@ -78,73 +79,81 @@ def is_abnormal(row) -> bool:
 
 
 def status_label(row) -> str:
+	"""明细「状态」列短词：旷工→旷工(红)，没来/全缺卡→未到(中性)，其余按 STATUS_LABEL。"""
+	if is_kuanggong(row):
+		return "旷工"
 	return STATUS_LABEL.get(row.get("status"), row.get("status") or "")
-
-
-def _normalize_result_labels(labels):
-	labels = [label for label in labels if label]
-	if "正常" in labels:
-		non_normal_labels = [label for label in labels if label != "正常"]
-		if non_normal_labels:
-			if len(non_normal_labels) == 1 and non_normal_labels[0] == "缺卡":
-				return ["缺卡", "出勤"]
-			return non_normal_labels
-	return labels
 
 
 def _leave_result_label(row):
 	return row.get("custom_dingtalk_leave_name") or "请假"
 
 
-def _normalize_result_summary_text(text, row=None):
-	for sep in (":", "："):
-		if sep not in text:
-			continue
-		source, result = text.split(sep, 1)
-		labels = [label.strip() for label in re.split(r"[、,，/]+", result) if label.strip()]
-		if row and row.get("status") == "On Leave" and labels and all(label == "缺卡" for label in labels):
-			return f"{source}{sep}{_leave_result_label(row)}"
-		normalized_labels = _normalize_result_labels(labels)
-		if normalized_labels != labels:
-			return f"{source}{sep}{'、'.join(normalized_labels)}"
-		return text
-	return text
-
-
 def attendance_result_summary(row) -> str:
-	"""明细表展示用：保留考勤结果口径，不重复展示每次打卡时间。"""
-	text = _punch(row)
-	without_times = re.sub(r"\s*\([^)]*\)", "", text).strip()
-	without_times = _normalize_result_summary_text(without_times, row)
-	if without_times in ("钉钉API", "钉钉API:", "钉钉API："):
-		without_times = f"钉钉API · {status_label(row)}"
-	if not without_times:
-		without_times = status_label(row)
+	"""明细「考勤结果」列：简约结果词（列宽有限，禁长文案）。
+
+	去打卡时间与来源前缀(车间工人班次/钉钉API/考勤组名)；
+	缺卡 → 漏卡(出勤) / 未到(缺勤)；旷工 → 旷工；请假 → 假名；迟到/早退附短标。
+	"""
+	body = re.sub(r"\s*\([^)]*\)", "", _punch(row)).strip()  # 去 (07:25,...) 打卡时间
+	for sep in (":", "："):  # 去来源前缀
+		if sep in body:
+			body = body.split(sep, 1)[1].strip()
+			break
+
+	if row.get("status") == "On Leave" and not is_kuanggong(row):
+		core = _leave_result_label(row)  # 年假/事假/...
+	else:
+		labels = [x.strip() for x in re.split(r"[、,，/]+", body) if x.strip()]
+		out = []
+		for x in labels:
+			if x in ("正常", "出勤"):
+				continue  # 正向标签冗余，状态列已表达
+			elif "旷工" in x:
+				out.append("旷工")
+			elif "缺卡" in x:
+				out.append("漏卡" if row.get("status") == "Present" else "未到")
+			else:
+				out.append(x)
+		out = list(dict.fromkeys(out))  # 去重保序
+		core = "、".join(out) if out else status_label(row)
 
 	flags = []
-	if row.get("late_entry") and "迟到" not in without_times:
+	if row.get("late_entry") and "迟到" not in core:
 		flags.append("迟到")
-	if row.get("early_exit") and "早退" not in without_times:
+	if row.get("early_exit") and "早退" not in core:
 		flags.append("早退")
-	return without_times + (f" · {'/'.join(flags)}" if flags else "")
+	return core + (f"·{'/'.join(flags)}" if flags else "")
 
 
 def compact_code(row) -> str:
-	"""总览格子紧凑码：出/缺/半/假，旷工→旷；加班加 💪，缺卡加 △。"""
-	code = STATUS_CODE.get(row.get("status"), "")
+	"""总览格子紧凑码：出/未/半/假，旷工→旷；迟到早退被扣→⚠、漏卡不扣→△、加班→💪。
+
+	⚠ 与 △ 互斥：被扣(late/early)的漏卡用 ⚠，免扣的漏卡(缺中间卡)用 △，
+	让总览能区分「被扣半天的漏卡」与「免扣的漏卡」。
+	"""
 	if is_kuanggong(row):
 		code = "旷"
+	else:
+		code = STATUS_CODE.get(row.get("status"), "")
+	if row.get("late_entry") or row.get("early_exit"):
+		code += "⚠"  # 漏边缘卡被扣 / 迟到早退
+	elif is_missing_punch(row) and row.get("status") == "Present":
+		code += "△"  # 漏卡但不扣（缺中间卡）
 	if row.get("custom_overtime_days"):
 		code += "💪"
-	if is_missing_punch(row):
-		code += "△"
 	return code
 
 
 def color_for(row) -> str:
-	"""格子填充色：缺勤/旷工=红、半天=黄、请假=蓝、出勤=绿、其余=灰。"""
-	if row.get("status") == "Absent" or is_kuanggong(row):
+	"""格子填充色：旷工/迟到早退被扣=红、没来=中性米、半天=黄、请假=蓝、出勤=绿、无记录=灰。
+
+	红色只留给旷工和迟到/早退被扣（用户口径）；没来/全缺卡是无薪非违规，用中性米色不报警。
+	"""
+	if is_kuanggong(row) or row.get("late_entry") or row.get("early_exit"):
 		return COLOR_RED
+	if row.get("status") == "Absent":
+		return COLOR_NEUTRAL
 	if row.get("status") == "Half Day":
 		return COLOR_YELLOW
 	if row.get("status") == "On Leave":
@@ -230,8 +239,9 @@ def get_attendance_rows(filters):
 	rows = frappe.db.sql(
 		f"""
 		select employee, employee_name, department, shift, attendance_date, status,
-		       in_time, out_time, working_hours, late_entry, early_exit,
-		       custom_punch_summary, custom_overtime_days, custom_dingtalk_leave_name
+		       in_time, out_time, late_entry, early_exit,
+		       custom_punch_summary, custom_overtime_days, custom_dingtalk_leave_name,
+		       custom_late_minutes, custom_early_minutes
 		from `tabAttendance`
 		where {" and ".join(conds)}
 		order by employee_name, attendance_date

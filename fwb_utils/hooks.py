@@ -21,7 +21,11 @@ doc_events = {
     # 计件工资单删除/取消时，自动解除并复位关联的 Employee Wage Sheet（清空 salary_slip + 状态复位为「已确认」）
     "Salary Slip": {
         "before_validate": "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",
-        "validate": "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",
+        "validate": [
+            "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",
+            # 末位：用净支付中文大写覆写英文 total_in_words（ERPNext money_in_words 不支持中文）
+            "fwb_utils.fwb_manufacturing.rmb_capital.set_rmb_total_in_words",
+        ],
         "on_trash": "fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet.on_salary_slip_unlink",
         "on_cancel": "fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet.on_salary_slip_unlink",
     },

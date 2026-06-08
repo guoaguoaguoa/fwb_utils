@@ -35,6 +35,7 @@ frappe.query_reports["Attendance Verification Overview"] = {
     onload: function (report) {
         $(report.page.wrapper).addClass("attn-overview-report");
         attn_inject_legend(report);
+        attn_inject_help(report);
         attn_setup_buttons(report);
     },
 };
@@ -54,17 +55,20 @@ function attn_apply_freeze() {
     $("<style id='attn-freeze-css'>").text(css).appendTo("head");
 }
 
-// ---- 两报表共用小工具（与明细报表保持一致）----
+// ---- 报表小工具（口径与明细报表 color_for / compact_code 对齐）----
 
+// 按紧凑码文字取色：旷/⚠=红，未=米，半=黄，假=蓝，出=绿，余灰。
 function attn_fill_color(text) {
     text = text || "";
-    if (text.indexOf("缺") >= 0 || text.indexOf("旷") >= 0) return "#fde7e9";
-    if (text.indexOf("半") >= 0) return "#fff4d6";
-    if (text.indexOf("假") >= 0) return "#e7f0fd";
-    if (text.indexOf("出") >= 0) return "#e6f4ea";
-    return "#f2f2f2";
+    if (text.indexOf("旷") >= 0 || text.indexOf("⚠") >= 0) return "#fde7e9"; // 红：旷工/迟到早退被扣
+    if (text.indexOf("未") >= 0) return "#faf4e6"; // 米：未到（没来，无薪非违规）
+    if (text.indexOf("半") >= 0) return "#fff4d6"; // 黄：半天
+    if (text.indexOf("假") >= 0) return "#e7f0fd"; // 蓝：请假
+    if (text.indexOf("出") >= 0) return "#e6f4ea"; // 绿：出勤
+    return "#f2f2f2"; // 灰：休息/无记录
 }
 
+// 总览图例：含紧凑码符号（与本表实际输出一致，△/⚠/💪 都会出现）
 function attn_legend_html() {
     var sw = function (c, t) {
         return (
@@ -74,10 +78,35 @@ function attn_legend_html() {
     };
     return (
         '<div style="padding:6px 10px;margin:4px 0 8px;background:#fafafa;border:1px solid #eee;border-radius:6px;font-size:12px;color:#555">图例：' +
-        sw("#e6f4ea", "出勤") + sw("#fde7e9", "缺勤/旷工") + sw("#fff4d6", "半天") +
-        sw("#e7f0fd", "请假") + sw("#f2f2f2", "休息/无记录") +
-        '　·　💪加班　△缺卡　⚠迟到/早退</div>'
+        sw("#e6f4ea", "出勤") + sw("#faf4e6", "未到") + sw("#fde7e9", "旷工/被扣") +
+        sw("#fff4d6", "半天") + sw("#e7f0fd", "请假") + sw("#f2f2f2", "休息/无记录") +
+        '　·　△漏卡(不扣)　⚠漏卡被扣/迟到早退　💪加班</div>'
     );
+}
+
+// 底部说明面板：用通用打卡串讲清「缺卡判定 + 是否扣款」，方便接手者（两报表一致）
+function attn_help_html() {
+    var li = function (t) { return '<div style="margin:2px 0">· ' + t + "</div>"; };
+    return (
+        '<div style="padding:8px 12px;margin:10px 0 4px;background:#fafafa;border:1px solid #eee;border-radius:6px;font-size:12px;color:#555;line-height:1.6">' +
+        '<b>考勤判定与扣款</b>（普工4卡 07:30/11:30/12:30/17:00，午休 11:30–12:30 为界；括号=(上班1,下班1,上班2,下班2)，"-"为缺卡）' +
+        li('4卡齐 / 只缺中间卡(下班1或上班2) → <b>出勤·不扣</b>。如 (07:25,-,12:01,17:01) 漏下班1，照常出勤。') +
+        li('缺<b>开头卡(上班1)</b> → 出勤，上班时间塌到中午 → 按<b>迟到</b>扣≈半天。如 (-,11:31,11:58,17:04)。') +
+        li('缺<b>结尾卡(下班2)</b> → 出勤，下班时间塌到中午 → 按<b>早退</b>扣≈半天。如 (07:23,11:31,11:53,-)。') +
+        li('整天没卡 / 只打上班或只打下班(单边卡) → <b>未到(无薪)</b>。如 (-,-,-,-)。') +
+        li('旷工(钉钉判定) → 红色<b>旷工</b>。') +
+        li('迟到/早退满30分钟才起扣，一旦起扣从第1分钟全扣，每天最多扣1个工日。') +
+        '<div style="margin-top:4px">颜色 绿=出勤　米=未到(无薪)　红=旷工/被扣　黄=半天　蓝=请假　灰=无记录/休息　｜　符号 △漏卡(不扣)　⚠漏卡被扣/迟到早退　💪加班</div>' +
+        "</div>"
+    );
+}
+
+function attn_inject_help(report) {
+    var id = "attn-help";
+    if ($(report.page.wrapper).find("#" + id).length) return;
+    var $host = $(report.page.wrapper).find(".layout-main-section").first();
+    if (!$host.length) $host = $(report.page.wrapper);
+    $('<div id="' + id + '">' + attn_help_html() + "</div>").appendTo($host);
 }
 
 function attn_inject_legend(report) {
