@@ -9,6 +9,9 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt
 
 DEFAULT_OVERTIME_START_TIME = "17:00:00"
+DEFAULT_SYNC_LEAVE_NAMES = "年假,丧假,事假,病假,调休"
+DEFAULT_HOUR_BASED_LEAVE_NAMES = "事假,病假,调休"
+LEAVE_NAME_MAX_LENGTH = 20
 TIME_RE = re.compile(r"(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?")
 
 
@@ -89,6 +92,7 @@ class PayrollAttendanceParameter(Document):
 	def validate(self):
 		self._set_defaults()
 		self._validate_numbers()
+		self._validate_leave_names()
 		self._validate_schedule_profiles()
 
 	def _set_defaults(self):
@@ -102,6 +106,10 @@ class PayrollAttendanceParameter(Document):
 			self.regular_daily_divisor = 30
 		if _is_blank(self.paid_leave_names):
 			self.paid_leave_names = "年假,丧假"
+		if _is_blank(self.sync_leave_names):
+			self.sync_leave_names = DEFAULT_SYNC_LEAVE_NAMES
+		if _is_blank(self.hour_based_leave_names):
+			self.hour_based_leave_names = DEFAULT_HOUR_BASED_LEAVE_NAMES
 		if _is_blank(self.overtime_start_time):
 			self.overtime_start_time = DEFAULT_OVERTIME_START_TIME
 		else:
@@ -146,6 +154,17 @@ class PayrollAttendanceParameter(Document):
 
 		if _time_to_minutes(self.overtime_start_time) is None:
 			frappe.throw("加班起算时刻必须是 HH:MM、HH:MM:SS 或 HH:MM:SS.ffffff 格式。")
+
+	def _validate_leave_names(self):
+		for fieldname, label in (
+			("paid_leave_names", "带薪假名称"),
+			("sync_leave_names", "同步请假名称"),
+			("hour_based_leave_names", "按小时统计的请假名称"),
+		):
+			names = [name.strip() for name in re.split(r"[,，\s]+", str(self.get(fieldname) or "")) if name.strip()]
+			too_long = [name for name in names if len(name) > LEAVE_NAME_MAX_LENGTH]
+			if too_long:
+				frappe.throw(f"{label}中的单个名称不能超过 {LEAVE_NAME_MAX_LENGTH} 个字符：{too_long[0]}")
 
 	def _validate_schedule_profiles(self):
 		counts = {0: 0, 1: 0}

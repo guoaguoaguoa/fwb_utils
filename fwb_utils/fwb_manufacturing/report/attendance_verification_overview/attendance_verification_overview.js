@@ -37,8 +37,17 @@ frappe.query_reports["Attendance Verification Overview"] = {
         attn_inject_legend(report);
         attn_inject_help(report);
         attn_setup_buttons(report);
+        attn_fill_threshold(report);
     },
 };
+
+// 动态填入「迟到早退起扣阈值」(读薪资考勤参数，避免说明里写死分钟数)
+function attn_fill_threshold(report) {
+    frappe.db.get_single_value("Payroll Attendance Parameter", "deduction_threshold_minutes").then(function (v) {
+        if (v === undefined || v === null || v === "") return;
+        $(report.page.wrapper).find(".attn-threshold").text(v);
+    });
+}
 
 // 左 2 列(员工/部门)冻结：scoped sticky CSS + 动态测量 员工列宽对齐部门列 left
 // frappe-datatable 无原生冻结；已 serialNoColumn=false 去掉序号列，故 col-0=员工、col-1=部门
@@ -95,7 +104,7 @@ function attn_help_html() {
         li('缺<b>结尾卡(下班2)</b> → 出勤，下班时间塌到中午 → 按<b>早退</b>扣≈半天。如 (07:23,11:31,11:53,-)。') +
         li('整天没卡 / 只打上班或只打下班(单边卡) → <b>未到(无薪)</b>。如 (-,-,-,-)。') +
         li('旷工(钉钉判定) → 红色<b>旷工</b>。') +
-        li('迟到/早退满30分钟才起扣，一旦起扣从第1分钟全扣，每天最多扣1个工日。') +
+        li('迟到/早退满<span class="attn-threshold">15</span>分钟才起扣，一旦起扣从第1分钟全扣，每天最多扣1个工日。') +
         '<div style="margin-top:4px">颜色 绿=出勤　米=未到(无薪)　红=旷工/被扣　黄=半天　蓝=请假　灰=无记录/休息　｜　符号 △漏卡(不扣)　⚠漏卡被扣/迟到早退　💪加班</div>' +
         "</div>"
     );

@@ -110,3 +110,20 @@ def set_rmb_total_in_words(doc, method=None):
 		doc.total_in_words = rmb_capital(net)
 	base = doc.get("base_net_pay")
 	doc.base_total_in_words = rmb_capital(base if base is not None else net)
+
+
+def set_rmb_in_words(doc, method=None):
+	"""销售/采购类单据 validate 钩子：把金额中文大写写回 in_words / base_in_words。
+
+	背景：ERPNext 原生 money_in_words 不支持中文，Sales Order 的 in_words 退化成英文 + 残缺中文
+	（实测 `SAL-260618-01` = `CNY Nine Thousand 仅。`）。本钩子在控制器 validate 之后覆写。
+	口径：优先 rounded_total（与 ERPNext money_in_words 取数一致），无则 grand_total，到角分，
+	**不带「人民币」前缀**（与 set_rmb_total_in_words 同口径）。当前挂在 Sales Order；其它有
+	in_words/rounded_total/grand_total 的单据（Sales Invoice / Quotation 等）同样挂 validate 即可复用。
+	已提交单不跑 validate，需重存/修订才刷新。
+	"""
+	amount = doc.get("rounded_total") or doc.get("grand_total")
+	if amount is not None:
+		doc.in_words = rmb_capital(amount)
+	base_amount = doc.get("base_rounded_total") or doc.get("base_grand_total")
+	doc.base_in_words = rmb_capital(base_amount if base_amount is not None else amount)

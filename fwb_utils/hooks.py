@@ -29,6 +29,10 @@ doc_events = {
         "on_trash": "fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet.on_salary_slip_unlink",
         "on_cancel": "fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet.on_salary_slip_unlink",
     },
+    # 销售订单「大写金额」：用中文大写覆写 ERPNext 英文 in_words（与工资单同口径，见设计文档 §7.6.5）
+    "Sales Order": {
+        "validate": "fwb_utils.fwb_manufacturing.rmb_capital.set_rmb_in_words",
+    },
 }
 
 scheduler_events = {

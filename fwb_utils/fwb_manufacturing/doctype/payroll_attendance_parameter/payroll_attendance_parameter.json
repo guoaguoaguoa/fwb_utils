@@ -12,6 +12,8 @@
   "deduction_threshold_minutes",
   "regular_daily_divisor",
   "paid_leave_names",
+  "sync_leave_names",
+  "hour_based_leave_names",
   "overtime_section",
   "overtime_start_time",
   "overtime_min_minutes",
@@ -67,6 +69,20 @@
    "fieldname": "paid_leave_names",
    "fieldtype": "Small Text",
    "label": "\u5e26\u85aa\u5047\u540d\u79f0"
+  },
+  {
+   "default": "\u5e74\u5047,\u4e27\u5047,\u4e8b\u5047,\u75c5\u5047,\u8c03\u4f11",
+   "description": "\u540c\u6b65\u771f\u5b9e\u5047\u540d\u4e0e\u65f6\u957f\uff1b\u591a\u4e2a\u540d\u79f0\u53ef\u7528\u9017\u53f7\u3001\u7a7a\u683c\u6216\u6362\u884c\u5206\u9694\u3002\u5e26\u85aa\u5047\u540d\u79f0\u4f1a\u81ea\u52a8\u5e76\u5165\u67e5\u8be2\u8303\u56f4\u3002",
+   "fieldname": "sync_leave_names",
+   "fieldtype": "Small Text",
+   "label": "\u540c\u6b65\u8bf7\u5047\u540d\u79f0"
+  },
+  {
+   "default": "\u4e8b\u5047,\u75c5\u5047,\u8c03\u4f11",
+   "description": "\u8fd9\u4e9b\u5047\u671f\u5728\u9489\u9489\u62a5\u8868\u4e2d\u6309\u5c0f\u65f6\u8fd4\u56de\uff0c\u540c\u6b65\u65f6\u4f1a\u6309\u5458\u5de5\u5f53\u65e5\u6392\u73ed\u5de5\u65f6\u6362\u7b97\u4e3a\u8bf7\u5047\u5929\u6570\u3002",
+   "fieldname": "hour_based_leave_names",
+   "fieldtype": "Small Text",
+   "label": "\u6309\u5c0f\u65f6\u7edf\u8ba1\u7684\u8bf7\u5047\u540d\u79f0"
   },
   {
    "fieldname": "overtime_section",

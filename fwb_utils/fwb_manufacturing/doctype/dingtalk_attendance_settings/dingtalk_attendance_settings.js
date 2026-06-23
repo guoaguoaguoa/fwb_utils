@@ -49,7 +49,7 @@ frappe.ui.form.on("Dingtalk Attendance Settings", {
 							const message = [
 								__("API 调用次数：{0}", [stat.api_calls || 0]),
 								__("考勤组名称查询：{0}", [stat.group_name_api_calls || 0]),
-								__("带薪假查询：{0}", [stat.paid_leave_api_calls || 0]),
+								__("请假查询：{0}", [stat.leave_api_calls || stat.paid_leave_api_calls || 0]),
 								__("新建考勤：{0}", [stat.created_attendance || 0]),
 								__("修订考勤：{0}", [stat.amended_attendance || 0]),
 								__("锁定跳过：{0}", [stat.skipped_locked_attendance || 0]),
@@ -75,12 +75,21 @@ frappe.ui.form.on("Dingtalk Attendance Settings", {
 									"</pre>"
 								);
 							}
-							if (stat.paid_leave_lookup_errors && stat.paid_leave_lookup_errors.length) {
+							if (stat.leave_lookup_errors && stat.leave_lookup_errors.length) {
 								message.push(
 									"<hr>",
-									__("带薪假查询失败，相关请假会按无薪兜底："),
+									__("请假查询失败，以下员工未覆盖原考勤，可修复接口后重新同步："),
 									"<pre style='max-height:120px;overflow:auto'>" +
-										frappe.utils.escape_html(JSON.stringify(stat.paid_leave_lookup_errors.slice(0, 5), null, 2)) +
+										frappe.utils.escape_html(JSON.stringify(stat.leave_lookup_errors.slice(0, 5), null, 2)) +
+									"</pre>"
+								);
+							}
+							if (stat.ambiguous_leave_dates && stat.ambiguous_leave_dates.length) {
+								message.push(
+									"<hr>",
+									__("以下日期存在混合假期或假期合计超过 1 天，已跳过考勤更新："),
+									"<pre style='max-height:160px;overflow:auto'>" +
+										frappe.utils.escape_html(JSON.stringify(stat.ambiguous_leave_dates.slice(0, 10), null, 2)) +
 									"</pre>"
 								);
 							}

@@ -35,8 +35,10 @@ from fwb_utils.fwb_manufacturing.dingtalk_attendance import (
 	LATE_DEDUCTION_COMPONENT,
 	REGULAR_WORKER_STRUCTURE,
 	_employee_structure,
+	_has_complete_punches,
+	_leave_suppresses_minutes,
 	_load_attendance_params,
-	_minutes_from_time_value,
+	_meal_allowance_days_for_attendance,
 	_minutes_to_time_string,
 	_paid_leave_names,
 	_schedule_profile_for,
@@ -46,9 +48,9 @@ from fwb_utils.fwb_manufacturing.dingtalk_attendance import (
 	daily_overtime_days,
 	get_attendance_payroll_factors,
 	is_paid_dingtalk_leave,
-	missed_whole_half,
 )
 from fwb_utils.fwb_manufacturing.attendance_report_utils import department_filter_names
+from fwb_utils.fwb_manufacturing.rmb_capital import set_rmb_total_in_words
 
 ACCESS_TOKEN_URL = "https://api.dingtalk.com/v1.0/oauth2/accessToken"
 ATTENDANCE_RESULT_URL = "https://oapi.dingtalk.com/attendance/list"
@@ -59,6 +61,8 @@ ATTENDANCE_LEAVE_TIME_URL = "https://oapi.dingtalk.com/topapi/attendance/getleav
 MAX_USERS_PER_CALL = 50
 MAX_DAYS_PER_CALL = 7
 DEFAULT_RESULT_LIMIT = 50
+LEAVE_NAMES_MAX_LENGTH = 20
+RECALCULATION_SAMPLE_LIMIT = 50
 
 GATE_RE = re.compile(r"(?<!\d)(401|402)(?!\d)")
 WIFI_LABEL = "WiFi"
@@ -107,6 +111,10 @@ def _new_stat():
 		updated_checkin_device_ids=0,
 		group_name_api_calls=0,
 		group_name_lookup_errors=[],
+		leave_api_calls=0,
+		leave_lookup_errors=[],
+		skipped_leave_lookup_user_ids=[],
+		ambiguous_leave_dates=[],
 		paid_leave_api_calls=0,
 		paid_leave_lookup_errors=[],
 	)
@@ -276,6 +284,43 @@ def _is_makeup_record(record):
 
 def _configured_paid_leave_names(settings=None):
 	return _paid_leave_names(settings)
+
+
+def _configured_sync_leave_names(settings=None):
+	params = _load_attendance_params()
+	names = list(params.get("sync_leave_names") or [])
+	for name in _configured_paid_leave_names(settings):
+		if name not in names:
+			names.append(name)
+	return names
+
+
+def _configured_hour_based_leave_names():
+	return list(_load_attendance_params().get("hour_based_leave_names") or [])
+
+
+def _leave_name_batches(leave_names):
+	batches = []
+	current = []
+	current_length = 0
+	seen = set()
+	for raw_name in leave_names or []:
+		name = str(raw_name or "").strip()
+		if not name or name in seen:
+			continue
+		if len(name) > LEAVE_NAMES_MAX_LENGTH:
+			frappe.throw(_("单个钉钉请假名称不能超过 {0} 个字符：{1}").format(LEAVE_NAMES_MAX_LENGTH, name))
+		added_length = len(name) + (1 if current else 0)
+		if current and current_length + added_length > LEAVE_NAMES_MAX_LENGTH:
+			batches.append(current)
+			current = []
+			current_length = 0
+		current.append(name)
+		seen.add(name)
+		current_length += len(name) + (1 if len(current) > 1 else 0)
+	if current:
+		batches.append(current)
+	return batches
 
 
 def extract_gate_device_label(record, gate_device_map=None):
@@ -553,35 +598,48 @@ def _build_attendance_values(employee, attendance_date, records, group_name_map=
 	is_regular = structure == REGULAR_WORKER_STRUCTURE
 	profile = _schedule_profile_for(is_regular)
 
-	# 单边卡（只上班 或 只下班）→ 缺勤（员工自行补卡）；半天请假+到岗 → Half Day。
-	both_punches = bool(in_time) and bool(out_time) and in_time != out_time
-	if leave_days and actual_times:
-		status = "Half Day"
-	elif leave_days:
-		status = "On Leave"
+	# 无薪假完整双卡只按迟到/早退分钟结算；单边卡仍缺勤，等待员工补卡。
+	both_punches = _has_complete_punches(in_time, out_time)
+	if paid_leave_days:
+		status = "Half Day" if actual_times and paid_leave_days < 1 else "On Leave"
+		actual_attendance_days = max(0.0, 1.0 - min(paid_leave_days, 1.0)) if actual_times else 0.0
+	elif unpaid_leave_days and both_punches:
+		status = "Present"
+		actual_attendance_days = 1.0
+	elif unpaid_leave_days:
+		status = "On Leave" if unpaid_leave_days >= 1 and not actual_times else "Absent"
+		actual_attendance_days = 0.0
 	elif both_punches:
 		status = "Present"
+		actual_attendance_days = 1.0
 	else:
 		status = "Absent"
-	actual_attendance_days = 0.5 if (actual_times and leave_days) else (1.0 if both_punches else 0.0)
+		actual_attendance_days = 0.0
 	scheduled_in_time = _time_string_from_value(
 		min(scheduled_on_times) if scheduled_on_times else None
 	) or _minutes_to_time_string(profile.work_start)
 	scheduled_out_time = _time_string_from_value(
 		max(scheduled_off_times) if scheduled_off_times else None
 	) or _minutes_to_time_string(profile.work_end)
-	in_min = _minutes_from_time_value(in_time)
-	out_min = _minutes_from_time_value(out_time)
-	whole_half_missed = missed_whole_half(in_min, out_min, profile) if both_punches else True
-	meal_days = 0.0 if is_regular else (
-		1.0 if (actual_attendance_days == 1.0 and not leave_days and not whole_half_missed) else 0.0
+	meal_days = _meal_allowance_days_for_attendance(
+		is_regular=is_regular,
+		actual_attendance_days=actual_attendance_days,
+		leave_days=leave_days,
+		in_time=in_time,
+		out_time=out_time,
+		profile=profile,
 	)
 	minute_factors = calculate_late_early_minutes(
 		in_time=in_time,
 		out_time=out_time,
 		scheduled_in=scheduled_in_time,
 		scheduled_out=scheduled_out_time,
-		has_leave=bool(leave_days),
+		has_leave=_leave_suppresses_minutes(
+			paid_leave_days,
+			unpaid_leave_days,
+			in_time,
+			out_time,
+		),
 		profile=profile,
 	)
 	overtime_days = daily_overtime_days(_hhmm(out_time), status == "Absent", is_regular)
@@ -646,14 +704,35 @@ def sync_result_records(
 		if not employee:
 			stat.unmatched_user_ids.append(user_id)
 			continue
-		if not _employee_structure(employee, attendance_date):
+		structure = _employee_structure(employee, attendance_date)
+		if not structure:
 			stat.no_structure.append(employee)
+		leave_info = _normalize_leave_info(
+			employee,
+			attendance_date,
+			leave_time_map.get((user_id, attendance_date)),
+			is_regular=structure == REGULAR_WORKER_STRUCTURE,
+		)
+		paid_days = flt((leave_info or {}).get("paid_days"))
+		unpaid_days = flt((leave_info or {}).get("unpaid_days"))
+		if (paid_days and unpaid_days) or paid_days + unpaid_days > 1.0001:
+			stat.ambiguous_leave_dates.append(
+				{
+					"user_id": user_id,
+					"employee": employee,
+					"attendance_date": str(attendance_date),
+					"leave_name": (leave_info or {}).get("leave_name"),
+					"paid_days": paid_days,
+					"unpaid_days": unpaid_days,
+				}
+			)
+			continue
 		values = _build_attendance_values(
 			employee,
 			attendance_date,
 			day_records,
 			group_name_map=group_name_map,
-			leave_info=leave_time_map.get((user_id, attendance_date)),
+			leave_info=leave_info,
 		)
 		key = _sync_attendance_with_amend(
 			employee,
@@ -754,46 +833,123 @@ def _collect_group_names(client, records, group_name_map, stat):
 	return group_name_map
 
 
-def _collect_paid_leave_times(client, user_ids, from_date, to_date, paid_leave_names, stat):
+def _collect_leave_times(
+	client,
+	user_ids,
+	from_date,
+	to_date,
+	leave_names,
+	stat,
+	hour_based_leave_names=None,
+):
 	leave_time_map = {}
-	if not paid_leave_names:
-		return leave_time_map
+	failed_user_ids = []
+	batches = _leave_name_batches(leave_names)
+	if not batches:
+		return leave_time_map, failed_user_ids
 	for user_id in user_ids:
-		try:
-			result, calls = client.list_leave_time_by_names(user_id, paid_leave_names, from_date, to_date)
-			stat.api_calls += calls
-			stat.paid_leave_api_calls += calls
-		except Exception as exc:
-			frappe.log_error(
-				title="Dingtalk Paid Leave Lookup Failed",
-				message=frappe.get_traceback(),
+		user_leave_time_map = {}
+		failed = False
+		for batch in batches:
+			try:
+				result, calls = client.list_leave_time_by_names(user_id, batch, from_date, to_date)
+				stat.api_calls += calls
+				stat.leave_api_calls += calls
+				stat.paid_leave_api_calls += calls
+			except Exception as exc:
+				frappe.log_error(
+					title="Dingtalk Leave Lookup Failed",
+					message=frappe.get_traceback(),
+				)
+				error = f"{user_id}: {str(exc)[:120]}"
+				if error not in stat.leave_lookup_errors:
+					stat.leave_lookup_errors.append(error)
+				if error not in stat.paid_leave_lookup_errors:
+					stat.paid_leave_lookup_errors.append(error)
+				failed = True
+				break
+			_merge_leave_time_map(
+				user_leave_time_map,
+				user_id,
+				result,
+				hour_based_leave_names=hour_based_leave_names,
 			)
-			error = f"{user_id}: {str(exc)[:120]}"
-			if error not in stat.paid_leave_lookup_errors:
-				stat.paid_leave_lookup_errors.append(error)
+		if failed:
+			failed_user_ids.append(str(user_id))
+			if str(user_id) not in stat.skipped_leave_lookup_user_ids:
+				stat.skipped_leave_lookup_user_ids.append(str(user_id))
 			continue
-		_merge_leave_time_map(leave_time_map, user_id, result)
-	return leave_time_map
+		for key, info in user_leave_time_map.items():
+			target = leave_time_map.setdefault(
+				key,
+				frappe._dict(
+					leave_name="",
+					paid_days=0.0,
+					unpaid_days=0.0,
+					paid_hours=0.0,
+					unpaid_hours=0.0,
+				),
+			)
+			target.leave_name = info.leave_name
+			target.paid_days += info.paid_days
+			target.unpaid_days += info.unpaid_days
+			target.paid_hours += info.paid_hours
+			target.unpaid_hours += info.unpaid_hours
+	return leave_time_map, failed_user_ids
 
 
-def _merge_leave_time_map(target, user_id, result):
+def _merge_leave_time_map(target, user_id, result, hour_based_leave_names=None):
+	hour_based_leave_names = set(hour_based_leave_names or [])
 	for column in (result.get("columns") or []):
 		column_info = column.get("columnvo") or {}
 		leave_name = str(column_info.get("name") or "").strip()
 		if not leave_name:
 			continue
 		for value_row in column.get("columnvals") or []:
-			days = flt(value_row.get("value"))
-			if not days:
+			amount = flt(value_row.get("value"))
+			if not amount:
 				continue
 			date_value = getdate(value_row.get("date"))
 			key = (str(user_id), date_value)
-			info = target.setdefault(key, frappe._dict(leave_name="", paid_days=0.0, unpaid_days=0.0))
+			info = target.setdefault(
+				key,
+				frappe._dict(
+					leave_name="",
+					paid_days=0.0,
+					unpaid_days=0.0,
+					paid_hours=0.0,
+					unpaid_hours=0.0,
+				),
+			)
 			info.leave_name = "、".join([name for name in (info.leave_name, leave_name) if name])
-			if is_paid_dingtalk_leave(leave_name):
-				info.paid_days += days
+			is_paid = is_paid_dingtalk_leave(leave_name)
+			if leave_name in hour_based_leave_names:
+				fieldname = "paid_hours" if is_paid else "unpaid_hours"
 			else:
-				info.unpaid_days += days
+				fieldname = "paid_days" if is_paid else "unpaid_days"
+			info[fieldname] += amount
+
+
+def _normalize_leave_info(employee, attendance_date, leave_info, is_regular=None):
+	if not leave_info:
+		return frappe._dict()
+	paid_days = flt(leave_info.get("paid_days"))
+	unpaid_days = flt(leave_info.get("unpaid_days"))
+	paid_hours = flt(leave_info.get("paid_hours"))
+	unpaid_hours = flt(leave_info.get("unpaid_hours"))
+	if not (paid_hours or unpaid_hours):
+		return frappe._dict(leave_name=leave_info.get("leave_name"), paid_days=paid_days, unpaid_days=unpaid_days)
+	if is_regular is None:
+		is_regular = _employee_structure(employee, attendance_date) == REGULAR_WORKER_STRUCTURE
+	profile = _schedule_profile_for(is_regular)
+	daily_hours = flt(profile.daily_hours)
+	if daily_hours <= 0:
+		frappe.throw(_("排班档案的日工作小时必须大于 0，无法换算按小时统计的请假。"))
+	return frappe._dict(
+		leave_name=leave_info.get("leave_name"),
+		paid_days=paid_days + paid_hours / daily_hours,
+		unpaid_days=unpaid_days + unpaid_hours / daily_hours,
+	)
 
 
 class DingtalkAttendanceClient:
@@ -1022,6 +1178,10 @@ def _attendance_rows_for_recalculation(month, scope, employees=None, department=
 			a.custom_meal_allowance_days,
 			a.custom_dingtalk_paid_leave_days,
 			a.custom_dingtalk_unpaid_leave_days,
+			a.custom_dingtalk_scheduled_in_time,
+			a.custom_dingtalk_scheduled_out_time,
+			a.custom_late_minutes,
+			a.custom_early_minutes,
 			a.custom_dingtalk_sync_locked
 		from `tabAttendance` a
 		inner join `tabEmployee` e on e.name = a.employee
@@ -1045,19 +1205,20 @@ def _actual_attendance_days_from_row(row):
 
 
 def _recalculated_meal_days(row, is_regular):
-	if is_regular:
-		return 0.0
 	leave_days = flt(row.custom_dingtalk_paid_leave_days) + flt(row.custom_dingtalk_unpaid_leave_days)
-	if leave_days:
-		return 0.0
-	if row.status != "Present" or _actual_attendance_days_from_row(row) != 1.0:
-		return 0.0
 	profile = _schedule_profile_for(False)
-	in_min = _minutes_from_time_value(row.in_time)
-	out_min = _minutes_from_time_value(row.out_time)
-	if missed_whole_half(in_min, out_min, profile):
-		return 0.0
-	return 1.0
+	actual_attendance_days = _actual_attendance_days_from_row(row)
+	if flt(row.custom_dingtalk_unpaid_leave_days) and not flt(row.custom_dingtalk_paid_leave_days):
+		if _has_complete_punches(row.in_time, row.out_time):
+			actual_attendance_days = 1.0
+	return _meal_allowance_days_for_attendance(
+		is_regular=is_regular,
+		actual_attendance_days=actual_attendance_days,
+		leave_days=leave_days,
+		in_time=row.in_time,
+		out_time=row.out_time,
+		profile=profile,
+	)
 
 
 def _attendance_payroll_recalculation(row):
@@ -1065,11 +1226,32 @@ def _attendance_payroll_recalculation(row):
 	is_regular = structure == REGULAR_WORKER_STRUCTURE
 	overtime_days = daily_overtime_days(_hhmm(row.out_time), row.status == "Absent", is_regular)
 	meal_days = _recalculated_meal_days(row, is_regular)
+	# 迟到/早退分钟：按存量打卡 + 排班 + 当前起扣阈值重算，使「改阈值 → 点重算按钮」即可生效，
+	# 不必重新同步钉钉。仅带薪假（年假/丧假）抑制分钟；无薪假/事假/普通早退一律按实际分钟扣
+	# （口径见设计文档 §7.6.3；与 calculate_late_early_minutes 同函数，保证与同步口径一致）。
+	profile = _schedule_profile_for(is_regular)
+	threshold = _load_attendance_params().deduction_threshold_minutes
+	minute_factors = calculate_late_early_minutes(
+		in_time=_hhmm(row.in_time),
+		out_time=_hhmm(row.out_time),
+		scheduled_in=row.custom_dingtalk_scheduled_in_time,
+		scheduled_out=row.custom_dingtalk_scheduled_out_time,
+		has_leave=_leave_suppresses_minutes(
+			row.custom_dingtalk_paid_leave_days,
+			row.custom_dingtalk_unpaid_leave_days,
+			row.in_time,
+			row.out_time,
+		),
+		profile=profile,
+		threshold=threshold,
+	)
 	return frappe._dict(
 		structure=structure,
 		is_regular=is_regular,
 		overtime_days=flt(overtime_days),
 		meal_allowance_days=flt(meal_days),
+		late_minutes=flt(minute_factors.late_minutes),
+		early_minutes=flt(minute_factors.early_minutes),
 	)
 
 
@@ -1077,6 +1259,8 @@ def _attendance_payroll_fields_changed(row, values):
 	return (
 		abs(flt(row.custom_overtime_days) - flt(values.overtime_days)) > 0.0001
 		or abs(flt(row.custom_meal_allowance_days) - flt(values.meal_allowance_days)) > 0.0001
+		or abs(flt(row.custom_late_minutes) - flt(values.late_minutes)) > 0.0001
+		or abs(flt(row.custom_early_minutes) - flt(values.early_minutes)) > 0.0001
 	)
 
 
@@ -1093,7 +1277,31 @@ def _recalculation_sample(row, values):
 		"new_overtime_days": flt(values.overtime_days),
 		"old_meal_allowance_days": flt(row.custom_meal_allowance_days),
 		"new_meal_allowance_days": flt(values.meal_allowance_days),
+		"old_late_minutes": flt(row.custom_late_minutes),
+		"new_late_minutes": flt(values.late_minutes),
+		"old_early_minutes": flt(row.custom_early_minutes),
+		"new_early_minutes": flt(values.early_minutes),
 	}
+
+
+def _new_recalculation_change_summary():
+	return {
+		fieldname: {"changed_count": 0, "old_total": 0.0, "new_total": 0.0, "delta": 0.0}
+		for fieldname in ("overtime_days", "meal_allowance_days", "late_minutes", "early_minutes")
+	}
+
+
+def _update_recalculation_change_summary(summary, row, values):
+	for fieldname in summary:
+		old_value = flt(row.get(f"custom_{fieldname}"))
+		new_value = flt(values.get(fieldname))
+		if abs(old_value - new_value) <= 0.0001:
+			continue
+		field_summary = summary[fieldname]
+		field_summary["changed_count"] += 1
+		field_summary["old_total"] += old_value
+		field_summary["new_total"] += new_value
+		field_summary["delta"] = field_summary["new_total"] - field_summary["old_total"]
 
 
 @frappe.whitelist()
@@ -1129,6 +1337,9 @@ def recalculate_attendance_payroll_fields(
 		unchanged_count=0,
 		skipped_count=0,
 		skipped_locked_count=0,
+		sample_limit=RECALCULATION_SAMPLE_LIMIT,
+		samples_truncated=False,
+		change_summary=_new_recalculation_change_summary(),
 		samples=[],
 	)
 
@@ -1144,7 +1355,8 @@ def recalculate_attendance_payroll_fields(
 			continue
 
 		stat.changed_count += 1
-		if len(stat.samples) < 10:
+		_update_recalculation_change_summary(stat.change_summary, row, values)
+		if len(stat.samples) < RECALCULATION_SAMPLE_LIMIT:
 			stat.samples.append(_recalculation_sample(row, values))
 
 		if dry_run:
@@ -1156,11 +1368,14 @@ def recalculate_attendance_payroll_fields(
 			{
 				"custom_overtime_days": values.overtime_days,
 				"custom_meal_allowance_days": values.meal_allowance_days,
+				"custom_late_minutes": values.late_minutes,
+				"custom_early_minutes": values.early_minutes,
 			},
 			update_modified=True,
 		)
 		stat.updated_count += 1
 
+	stat.samples_truncated = stat.changed_count > len(stat.samples)
 	return stat
 
 
@@ -1186,7 +1401,8 @@ def _sync_date_range(client, settings, from_date, to_date, employee_map, force_l
 	stat = _new_stat()
 	user_ids = list(employee_map.keys())
 	gate_device_map = _configured_gate_device_map(settings)
-	paid_leave_names = _configured_paid_leave_names(settings)
+	sync_leave_names = _configured_sync_leave_names(settings)
+	hour_based_leave_names = _configured_hour_based_leave_names()
 	group_name_map = {}
 	for window_from, window_to in _date_windows(from_date, to_date):
 		for user_chunk in _chunked(user_ids, MAX_USERS_PER_CALL):
@@ -1194,14 +1410,18 @@ def _sync_date_range(client, settings, from_date, to_date, employee_map, force_l
 				records, calls = client.list_attendance_results(user_chunk, window_from, window_to)
 				stat.api_calls += calls
 				_collect_group_names(client, records, group_name_map, stat)
-				leave_time_map = _collect_paid_leave_times(
+				leave_time_map, failed_leave_user_ids = _collect_leave_times(
 					client,
 					user_chunk,
 					window_from,
 					window_to,
-					paid_leave_names,
+					sync_leave_names,
 					stat,
+					hour_based_leave_names=hour_based_leave_names,
 				)
+				if failed_leave_user_ids:
+					failed_leave_user_ids = set(failed_leave_user_ids)
+					records = [record for record in records if _record_user_id(record) not in failed_leave_user_ids]
 				_merge_stat(
 					stat,
 					sync_result_records(
@@ -1288,13 +1508,15 @@ def _build_monthly_sync_message(target, stat=None, error=None, now_text=None, du
 	amended = g("updated_draft_attendance") + g("amended_attendance")
 	unmatched = stat.get("unmatched_user_ids") or []
 	no_structure = stat.get("no_structure") or []
+	skipped_leave_users = stat.get("skipped_leave_lookup_user_ids") or []
+	ambiguous_leave_dates = stat.get("ambiguous_leave_dates") or []
 	subject = f"月度考勤核对完成：{target}（新建{created} 修订{amended}）"
 	rows = [
 		"<b>月度考勤核对完成</b>",
 		f"核对月份：{target}",
 		f"触发时间：{now_text or ''}",
 		f"耗时：{cint(duration or 0)} 秒",
-		f"API 调用：{g('api_calls')} 次（含考勤组 {g('group_name_api_calls')} / 带薪假 {g('paid_leave_api_calls')}）",
+		f"API 调用：{g('api_calls')} 次（含考勤组 {g('group_name_api_calls')} / 请假 {g('leave_api_calls')}）",
 		f"新建考勤：{created}",
 		f"修订考勤：{amended}（草稿 {g('updated_draft_attendance')} / 提交修订 {g('amended_attendance')}）",
 		f"无变化：{g('unchanged_attendance')}",
@@ -1302,6 +1524,9 @@ def _build_monthly_sync_message(target, stat=None, error=None, now_text=None, du
 		f"新建签到流水：{g('created_checkins')}",
 		f"未匹配员工：{len(unmatched)}" + (f"（{', '.join(map(str, unmatched))}）" if unmatched else ""),
 		f"无SSA结构员工：{len(no_structure)}" + (f"（{', '.join(map(str, no_structure))}）" if no_structure else ""),
+		f"请假查询失败跳过员工：{len(skipped_leave_users)}"
+		+ (f"（{', '.join(map(str, skipped_leave_users))}）" if skipped_leave_users else ""),
+		f"异常请假日期：{len(ambiguous_leave_dates)}",
 	]
 	return subject, "<br>".join(rows)
 
@@ -1368,6 +1593,7 @@ def recalculate_salary_slip_attendance(salary_slip):
 	doc.compute_year_to_date()
 	doc.compute_month_to_date()
 	doc.compute_component_wise_year_to_date()
+	set_rmb_total_in_words(doc)
 	doc.flags.ignore_validate = True
 	doc.save(ignore_permissions=True)
 	factors = get_attendance_payroll_factors(doc.employee, doc.start_date, doc.end_date)

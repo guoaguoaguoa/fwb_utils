@@ -31,6 +31,7 @@ PERSONAL_SOCIAL_SECURITY_COMPONENT = "社保-个人"
 COMPANY_SOCIAL_SECURITY_COMPONENT = "社保-单位"
 SOCIAL_SECURITY_EMPLOYMENT_TYPE = "缴纳社保"
 DEFAULT_PAID_LEAVE_NAMES = ("年假", "丧假")
+DEFAULT_SYNC_LEAVE_NAMES = ("年假", "丧假", "事假", "病假", "调休")
 REGULAR_WORKER_STRUCTURE = "普工结构"  # 仅此结构计加班费
 NON_WORKER_STRUCTURES = ("内贸业务员结构", "外贸业务员结构", "美工结构", "行政结构")
 NON_WORKER_MONTHLY_REST_DAYS = 6  # 默认；实际从「薪资考勤参数」读取
@@ -38,6 +39,7 @@ NON_WORKER_STANDARD_HOURS_PER_DAY = 7.5  # 默认非普工日工时（08:30-17:3
 ATTENDANCE_DEDUCTION_THRESHOLD_MINUTES = 30  # 默认；实际从「薪资考勤参数」读取
 DEFAULT_MEAL_UNIT_PRICE = 14.0
 DEFAULT_REGULAR_DAILY_DIVISOR = 30  # 普工单日工资 = 月固定 / 本数
+DEFAULT_HOUR_BASED_LEAVE_NAMES = ("事假", "病假", "调休")
 FIXED_ATTENDANCE_COMPONENTS = (
 	("底薪", "base"),
 	("工龄补贴", "custom_seniority_base"),
@@ -116,6 +118,10 @@ def _load_attendance_params():
 	threshold = _param_value(doc, "deduction_threshold_minutes", ATTENDANCE_DEDUCTION_THRESHOLD_MINUTES, cint)
 	divisor = _param_value(doc, "regular_daily_divisor", DEFAULT_REGULAR_DAILY_DIVISOR, cint)
 	paid_leave_names = _split_names(_param_value(doc, "paid_leave_names", ",".join(DEFAULT_PAID_LEAVE_NAMES)))
+	sync_leave_names = _split_names(_param_value(doc, "sync_leave_names", ",".join(DEFAULT_SYNC_LEAVE_NAMES)))
+	hour_based_leave_names = _split_names(
+		_param_value(doc, "hour_based_leave_names", ",".join(DEFAULT_HOUR_BASED_LEAVE_NAMES))
+	)
 	overtime_start_time = _time_string_from_value(
 		_param_value(doc, "overtime_start_time", DEFAULT_OT_START),
 		default=DEFAULT_OT_START,
@@ -141,6 +147,8 @@ def _load_attendance_params():
 		deduction_threshold_minutes=threshold,
 		regular_daily_divisor=divisor,
 		paid_leave_names=paid_leave_names or list(DEFAULT_PAID_LEAVE_NAMES),
+		sync_leave_names=sync_leave_names or list(DEFAULT_SYNC_LEAVE_NAMES),
+		hour_based_leave_names=hour_based_leave_names or list(DEFAULT_HOUR_BASED_LEAVE_NAMES),
 		overtime_start_time=overtime_start_time,
 		overtime_min_minutes=overtime_min_minutes,
 		overtime_step_minutes=overtime_step_minutes,
@@ -644,7 +652,10 @@ def _attendance_factor_from_row(row):
 	stored_actual_days = flt(row.get("custom_actual_attendance_days"))
 	stored_meal_days = flt(row.get("custom_meal_allowance_days"))
 
-	if stored_actual_days:
+	has_complete_punches = _has_complete_punches(row.get("in_time"), row.get("out_time"))
+	if unpaid_leave_days and not paid_leave_days and has_complete_punches:
+		actual_days = 1.0
+	elif stored_actual_days:
 		actual_days = stored_actual_days
 	elif status == "Present" and not has_leave_days:
 		actual_days = 1.0
@@ -665,15 +676,45 @@ def _attendance_factor_from_row(row):
 
 
 def _attendance_minute_factors_from_row(row):
-	"""信任同步层写入的缺勤工作分钟（已撇午休、按档案、封顶）。请假日不计。"""
+	"""信任同步层写入的缺勤分钟；带薪假或不完整打卡不再叠加分钟扣款。"""
 	paid_leave_days = flt(row.get("custom_dingtalk_paid_leave_days"))
-	unpaid_leave_days = flt(row.get("custom_dingtalk_unpaid_leave_days"))
-	if paid_leave_days or unpaid_leave_days:
+	if paid_leave_days or not _has_complete_punches(row.get("in_time"), row.get("out_time")):
 		return frappe._dict(late_minutes=0.0, early_minutes=0.0)
 	return frappe._dict(
 		late_minutes=flt(row.get("custom_late_minutes")),
 		early_minutes=flt(row.get("custom_early_minutes")),
 	)
+
+
+def _has_complete_punches(in_time, out_time):
+	in_minutes = _minutes_from_time_value(in_time)
+	out_minutes = _minutes_from_time_value(out_time)
+	return in_minutes is not None and out_minutes is not None and in_minutes != out_minutes
+
+
+def _leave_suppresses_minutes(paid_leave_days, _unpaid_leave_days, in_time, out_time):
+	# 不完整打卡已经按缺勤处理，不再叠加分钟扣款；带薪假始终抑制分钟。
+	return bool(flt(paid_leave_days)) or not _has_complete_punches(in_time, out_time)
+
+
+def _meal_allowance_days_for_attendance(
+	*,
+	is_regular,
+	actual_attendance_days,
+	leave_days,
+	in_time,
+	out_time,
+	profile,
+):
+	if is_regular or flt(actual_attendance_days) != 1.0:
+		return 0.0
+	if flt(leave_days) >= 0.5:
+		return 0.0
+	if not _has_complete_punches(in_time, out_time):
+		return 0.0
+	in_min = _minutes_from_time_value(in_time)
+	out_min = _minutes_from_time_value(out_time)
+	return 0.0 if missed_whole_half(in_min, out_min, profile) else 1.0
 
 
 def get_attendance_payroll_factors(employee, start_date, end_date):
