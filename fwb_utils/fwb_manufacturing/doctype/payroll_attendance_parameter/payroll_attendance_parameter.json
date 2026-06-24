@@ -7,6 +7,8 @@
  "field_order": [
   "params_section",
   "meal_unit_price",
+  "non_worker_rest_calculation_mode",
+  "non_worker_double_rest_week_parity",
   "non_worker_monthly_rest_days",
   "column_break_params",
   "deduction_threshold_minutes",
@@ -39,11 +41,31 @@
    "label": "\u9910\u8865\u5355\u4ef7(\u5143/\u5929)"
   },
   {
+   "default": "ISO\u5355\u53cc\u4f11",
+   "description": "ISO\u5355\u53cc\u4f11\u6309\u516c\u5386 ISO \u5468\u53f7\u8ba1\u7b97\uff1a\u5468\u65e5\u56fa\u5b9a\u4f11\uff0c\u53cc\u4f11\u5468\u518d\u4f11\u5468\u516d\u3002\u56fa\u5b9a\u6708\u4f11\u5929\u6570\u4ec5\u4f5c\u517c\u5bb9\u5907\u7528\u3002",
+   "fieldname": "non_worker_rest_calculation_mode",
+   "fieldtype": "Select",
+   "label": "\u975e\u666e\u5de5\u4f11\u606f\u65e5\u8ba1\u7b97\u65b9\u5f0f",
+   "options": "ISO\u5355\u53cc\u4f11\n\u56fa\u5b9a\u6708\u4f11\u5929\u6570",
+   "reqd": 1
+  },
+  {
+   "default": "\u5355\u6570\u5468",
+   "depends_on": "eval:doc.non_worker_rest_calculation_mode=='ISO\u5355\u53cc\u4f11'",
+   "description": "\u9009\u4e2d\u7684 ISO \u5468\u7c7b\u578b\u4f11\u5468\u516d\u3001\u5468\u65e5\uff1b\u53e6\u4e00\u7c7b\u5468\u53ea\u4f11\u5468\u65e5\u3002",
+   "fieldname": "non_worker_double_rest_week_parity",
+   "fieldtype": "Select",
+   "label": "\u53cc\u4f11\u5468\u7c7b\u578b",
+   "options": "\u5355\u6570\u5468\n\u53cc\u6570\u5468",
+   "reqd": 1
+  },
+  {
    "default": "6",
-   "description": "\u975e\u666e\u5de5\u5e94\u51fa\u52e4 = \u5f53\u6708\u81ea\u7136\u5929\u6570 \u2212 \u672c\u6570 \u2212 \u5f53\u6708\u6cd5\u5b9a\u5047\u3002",
+   "depends_on": "eval:doc.non_worker_rest_calculation_mode=='\u56fa\u5b9a\u6708\u4f11\u5929\u6570'",
+   "description": "\u4ec5\u5728\u300c\u56fa\u5b9a\u6708\u4f11\u5929\u6570\u300d\u6a21\u5f0f\u751f\u6548\uff1b\u57fa\u7840\u8bb0\u85aa\u5206\u6bcd = \u5f53\u6708\u81ea\u7136\u5929\u6570 \u2212 \u672c\u6570\u3002",
    "fieldname": "non_worker_monthly_rest_days",
    "fieldtype": "Int",
-   "label": "\u975e\u666e\u5de5\u6708\u4f11\u606f\u65e5"
+   "label": "\u56fa\u5b9a\u6708\u4f11\u606f\u65e5"
   },
   {
    "fieldname": "column_break_params",
@@ -152,7 +174,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-06-05 08:56:31.540306",
+ "modified": "2026-06-24 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "Payroll Attendance Parameter",

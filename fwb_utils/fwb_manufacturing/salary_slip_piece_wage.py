@@ -146,6 +146,9 @@ def _append_aggregated_row(doc, row):
 	child.duration_seconds = row.get("total_duration_seconds")
 	child.duration_display = _format_duration_display(row.get("total_duration_seconds"))
 	child.is_penalty = row.get("is_penalty", 0)
+	# 罚款行：把返工单「次品情况描述」抓进明细备注，方便在工资单直接看扣除原因。
+	# 普通计件/计时行不带 remarks，保持为空。
+	child.remarks = row.get("remarks")
 	child.rate = row.get("rate") or 0
 	child.amount = _calculate_row_amount(child)
 	return child
@@ -180,7 +183,12 @@ def _apply_penalty_override(child, overrides: dict[tuple, dict]):
 		return
 	child.rate = override.get("rate")
 	child.amount = override.get("amount")
-	child.remarks = override.get("remarks")
+	# 备注口径（业主拍板：首次填入、之后保留手工改）：
+	# 仅当工资单上原备注非空时才保留（手工改过或上次已抓取的值）；
+	# 若原备注为空，则保留 _append_aggregated_row 刚从 Rework Record 抓取的备注，
+	# 避免「空覆盖」把新抓到的扣除原因冲掉。
+	if override.get("remarks"):
+		child.remarks = override.get("remarks")
 
 
 def _penalty_override_key(row) -> tuple:

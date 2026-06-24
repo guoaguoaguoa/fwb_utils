@@ -16,3 +16,4 @@ fwb_utils.patches.v15_0.reload_fwb_manufacturing_workspace
 fwb_utils.patches.v15_0.hide_legacy_wage_workspace_links
 fwb_utils.patches.v15_0.payroll_attendance_sync_leave_names
 fwb_utils.patches.v15_0.payroll_attendance_hour_based_leave_names
+fwb_utils.patches.v15_0.payroll_attendance_iso_week_rest

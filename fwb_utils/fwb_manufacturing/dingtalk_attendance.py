@@ -13,9 +13,15 @@ parse_monthly_summary）不依赖 DB，可沙箱单测。
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 
 import frappe
 from frappe.utils import add_days, cint, date_diff, flt, getdate
+
+from fwb_utils.fwb_manufacturing.doctype.payroll_attendance_parameter.payroll_attendance_parameter import (
+	DEFAULT_NON_WORKER_DOUBLE_REST_WEEK_PARITY,
+	DEFAULT_NON_WORKER_REST_CALCULATION_MODE,
+)
 
 DEFAULT_OT_START = "17:00"  # 标准下班，加班起算点
 DEFAULT_OT_MIN_MINUTES = 60  # 1 小时起步
@@ -115,6 +121,16 @@ def _load_attendance_params():
 		doc = None
 	meal_price = _param_value(doc, "meal_unit_price", DEFAULT_MEAL_UNIT_PRICE, flt)
 	rest_days = _param_value(doc, "non_worker_monthly_rest_days", NON_WORKER_MONTHLY_REST_DAYS, cint)
+	rest_calculation_mode = _param_value(
+		doc,
+		"non_worker_rest_calculation_mode",
+		DEFAULT_NON_WORKER_REST_CALCULATION_MODE,
+	)
+	double_rest_week_parity = _param_value(
+		doc,
+		"non_worker_double_rest_week_parity",
+		DEFAULT_NON_WORKER_DOUBLE_REST_WEEK_PARITY,
+	)
 	threshold = _param_value(doc, "deduction_threshold_minutes", ATTENDANCE_DEDUCTION_THRESHOLD_MINUTES, cint)
 	divisor = _param_value(doc, "regular_daily_divisor", DEFAULT_REGULAR_DAILY_DIVISOR, cint)
 	paid_leave_names = _split_names(_param_value(doc, "paid_leave_names", ",".join(DEFAULT_PAID_LEAVE_NAMES)))
@@ -144,6 +160,8 @@ def _load_attendance_params():
 	return frappe._dict(
 		meal_unit_price=meal_price,
 		non_worker_monthly_rest_days=rest_days,
+		non_worker_rest_calculation_mode=rest_calculation_mode,
+		non_worker_double_rest_week_parity=double_rest_week_parity,
 		deduction_threshold_minutes=threshold,
 		regular_daily_divisor=divisor,
 		paid_leave_names=paid_leave_names or list(DEFAULT_PAID_LEAVE_NAMES),
@@ -636,12 +654,48 @@ def _holiday_quota_days(employee, start_date, end_date):
 	return flt(total)
 
 
+def count_non_worker_rest_days(
+	start_date,
+	end_date,
+	*,
+	calculation_mode=DEFAULT_NON_WORKER_REST_CALCULATION_MODE,
+	double_rest_week_parity=DEFAULT_NON_WORKER_DOUBLE_REST_WEEK_PARITY,
+	fixed_monthly_rest_days=NON_WORKER_MONTHLY_REST_DAYS,
+):
+	"""统计非普工基础休息日；ISO 模式按日期实际所在周计算，天然覆盖跨年 53/1 周。"""
+	if calculation_mode == "固定月休天数":
+		return max(0, cint(fixed_monthly_rest_days))
+
+	current = getdate(start_date)
+	period_end = getdate(end_date)
+	if current > period_end:
+		return 0
+	double_rest_remainder = 0 if double_rest_week_parity == "双数周" else 1
+	rest_days = 0
+	while current <= period_end:
+		weekday = current.weekday()
+		iso_week = current.isocalendar().week
+		if weekday == 6 or (weekday == 5 and iso_week % 2 == double_rest_remainder):
+			rest_days += 1
+		current += timedelta(days=1)
+	return rest_days
+
+
+def _non_worker_rest_days(start_date, end_date):
+	params = _load_attendance_params()
+	return count_non_worker_rest_days(
+		start_date,
+		end_date,
+		calculation_mode=params.non_worker_rest_calculation_mode,
+		double_rest_week_parity=params.non_worker_double_rest_week_parity,
+		fixed_monthly_rest_days=params.non_worker_monthly_rest_days,
+	)
+
+
 def _expected_work_days(employee, start_date, end_date, legal_holiday_days=None):
 	natural_days = date_diff(end_date, start_date) + 1
-	if legal_holiday_days is None:
-		legal_holiday_days = _holiday_quota_days(employee, start_date, end_date)
-	rest_days = _load_attendance_params().non_worker_monthly_rest_days
-	return max(0.0, flt(natural_days) - flt(rest_days) - flt(legal_holiday_days))
+	rest_days = _non_worker_rest_days(start_date, end_date)
+	return max(0.0, flt(natural_days) - flt(rest_days))
 
 
 def _attendance_factor_from_row(row):
@@ -753,15 +807,18 @@ def get_attendance_payroll_factors(employee, start_date, end_date):
 		early_minutes += minute_factors.early_minutes
 
 	legal_holiday_days = _holiday_quota_days(employee, start_date, end_date)
+	rest_days = _non_worker_rest_days(start_date, end_date)
 	expected_work_days = _expected_work_days(employee, start_date, end_date, legal_holiday_days)
-	unpaid_absence_days = max(0.0, expected_work_days - actual_days - paid_leave_days)
+	salary_days = actual_days + paid_leave_days + legal_holiday_days
+	unpaid_absence_days = max(0.0, expected_work_days - salary_days)
 	return frappe._dict(
 		attendance_count=len(rows),
 		actual_attendance_days=actual_days,
 		paid_leave_days=paid_leave_days,
 		unpaid_leave_days=unpaid_leave_days,
 		legal_holiday_days=legal_holiday_days,
-		salary_days=actual_days + paid_leave_days + legal_holiday_days,
+		rest_days=rest_days,
+		salary_days=salary_days,
 		meal_days=meal_days,
 		expected_work_days=expected_work_days,
 		unpaid_absence_days=unpaid_absence_days,

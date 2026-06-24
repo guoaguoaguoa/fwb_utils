@@ -676,6 +676,101 @@ class TestSalarySlipPieceWage(FrappeTestCase):
 		self.assertEqual(flt(slip.net_pay), 34)
 		self.assertFalse(slip.get("custom_manufacturing_wage_details"))
 
+	def test_generate_piece_wage_fills_penalty_remark_from_rework_record(self):
+		"""罚款行（来自 Rework Record，is_penalty=1）生成时应把返工单
+		「次品情况描述」(remark) 抓进明细备注 (remarks)，方便在工资单直接看
+		扣除原因，无需回 Rework Record 按报工单号查。"""
+		slip = self._draft_salary_slip()
+		workstation = ensure_test_workstation("Test Penalty Remark Station")
+		report = make_fwb_work_report(
+			employee=self.employee.name,
+			workstation=workstation.name,
+			qty=10,
+			created_at="2026-04-10 10:00:00",
+		)
+		report.submit()
+
+		rr = make_rework_record(
+			from_work_report=report.name,
+			employee=self.employee.name,
+			workstation=workstation.name,
+			is_penalty=1,
+			penalty_qty=3,
+			remark="掉漆返工，责任工序扣罚",
+		)
+		# 与现有罚款用例一致：直接置 docstatus=1，跳过提交钩子的报工回写副作用。
+		frappe.db.set_value(
+			"Rework Record", rr.name, {"docstatus": 1}, update_modified=False
+		)
+
+		generate_piece_wage_details_for_salary_slip(slip.name)
+		slip.reload()
+
+		penalty_rows = [d for d in slip.get(PIECE_WAGE_DETAIL_FIELD) if d.is_penalty]
+		self.assertEqual(len(penalty_rows), 1)
+		self.assertEqual(penalty_rows[0].source_work_report, report.name)
+		self.assertEqual(penalty_rows[0].remarks, "掉漆返工，责任工序扣罚")
+
+	def test_generate_piece_wage_empty_slip_remark_not_wiped_by_fresh_fetch(self):
+		"""空覆盖守卫：工资单上罚款行原备注为空时，重新生成不应把刚从返工单
+		抓来的备注用空值冲掉（业主口径：首次填入、之后保留手工改）。"""
+		slip = self._draft_salary_slip()
+		workstation = ensure_test_workstation("Test Penalty Empty Remark Station")
+		report = make_fwb_work_report(
+			employee=self.employee.name,
+			workstation=workstation.name,
+			qty=5,
+			created_at="2026-04-12 10:00:00",
+		)
+
+		# 预置一条同源罚款行，但备注留空（模拟首次生成时返工单还没写原因）
+		slip.append(
+			PIECE_WAGE_DETAIL_FIELD,
+			{
+				"source_work_report": report.name,
+				"workstation": workstation.name,
+				"product_name": "罚款",
+				"qty": 2,
+				"rate": 0,
+				"amount": 0,
+				"is_penalty": 1,
+				"remarks": "",
+			},
+		)
+		slip.save(ignore_permissions=True)
+
+		generated_rows = [
+			frappe._dict(
+				{
+					"work_report": report.name,
+					"work_order": None,
+					"workstation": workstation.name,
+					"product_name": "罚款",
+					"size_l": "",
+					"size_w": "",
+					"size_h": "",
+					"total_valid_qty": 2,
+					"total_defect_qty": 0,
+					"defect_rate": 0,
+					"total_duration_seconds": 0,
+					"rate": 0,
+					"remarks": "后补的扣罚原因",
+					"is_penalty": 1,
+				}
+			),
+		]
+
+		with patch(
+			"fwb_utils.fwb_manufacturing.salary_slip_piece_wage._collect_aggregated_rows",
+			return_value=generated_rows,
+		):
+			generate_piece_wage_details_for_salary_slip(slip.name)
+
+		slip.reload()
+		penalty_rows = [d for d in slip.get(PIECE_WAGE_DETAIL_FIELD) if d.is_penalty]
+		self.assertEqual(len(penalty_rows), 1)
+		self.assertEqual(penalty_rows[0].remarks, "后补的扣罚原因")
+
 	def test_generate_piece_wage_details_rejects_non_piece_structure(self):
 		slip = self._draft_salary_slip("普工结构")
 

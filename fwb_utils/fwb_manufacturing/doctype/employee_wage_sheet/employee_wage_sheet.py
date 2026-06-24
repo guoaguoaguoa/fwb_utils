@@ -387,6 +387,7 @@ def _collect_penalty_rows(employee, from_date, to_date):
             r.workstation,
             COALESCE(r.product_name, w.product_name) as product_name,
             IFNULL(r.penalty_qty, 0) as qty,
+            r.remark,
             r.created_at
         FROM `tabRework Record` r
         INNER JOIN `tabFWB Work Report` w ON r.from_work_report = w.name
@@ -433,6 +434,7 @@ def _collect_penalty_rows(employee, from_date, to_date):
             "defect_rate": 0,
             "total_duration_seconds": 0,
             "rate": 0.0, # Default rate is 0, to be filled by user
+            "remarks": row.remark, # 抓取返工单「次品情况描述」，同步到工资单罚款行备注
             "is_penalty": 1
         }))
     return res

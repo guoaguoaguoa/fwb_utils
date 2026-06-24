@@ -121,6 +121,7 @@ def make_rework_record(
 	reworked_qty=0,
 	is_penalty=0,
 	penalty_qty=0,
+	remark=None,
 	created_at=None,
 ):
 	report = frappe.get_doc("FWB Work Report", from_work_report)
@@ -142,6 +143,7 @@ def make_rework_record(
 			"reworked_qty": reworked_qty,
 			"is_penalty": is_penalty,
 			"penalty_qty": penalty_qty,
+			"remark": remark,
 			"created_at": created_at,
 		}
 	)

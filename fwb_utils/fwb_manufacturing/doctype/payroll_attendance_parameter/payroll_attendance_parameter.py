@@ -11,6 +11,10 @@ from frappe.utils import cint, flt
 DEFAULT_OVERTIME_START_TIME = "17:00:00"
 DEFAULT_SYNC_LEAVE_NAMES = "年假,丧假,事假,病假,调休"
 DEFAULT_HOUR_BASED_LEAVE_NAMES = "事假,病假,调休"
+DEFAULT_NON_WORKER_REST_CALCULATION_MODE = "ISO单双休"
+DEFAULT_NON_WORKER_DOUBLE_REST_WEEK_PARITY = "单数周"
+NON_WORKER_REST_CALCULATION_MODES = ("ISO单双休", "固定月休天数")
+NON_WORKER_DOUBLE_REST_WEEK_PARITIES = ("单数周", "双数周")
 LEAVE_NAME_MAX_LENGTH = 20
 TIME_RE = re.compile(r"(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?")
 
@@ -96,44 +100,53 @@ class PayrollAttendanceParameter(Document):
 		self._validate_schedule_profiles()
 
 	def _set_defaults(self):
-		if _is_blank(self.meal_unit_price):
+		if _is_blank(self.get("meal_unit_price")):
 			self.meal_unit_price = 14
-		if _is_blank(self.non_worker_monthly_rest_days):
+		if _is_blank(self.get("non_worker_rest_calculation_mode")):
+			self.non_worker_rest_calculation_mode = DEFAULT_NON_WORKER_REST_CALCULATION_MODE
+		if _is_blank(self.get("non_worker_double_rest_week_parity")):
+			self.non_worker_double_rest_week_parity = DEFAULT_NON_WORKER_DOUBLE_REST_WEEK_PARITY
+		if _is_blank(self.get("non_worker_monthly_rest_days")):
 			self.non_worker_monthly_rest_days = 6
-		if _is_blank(self.deduction_threshold_minutes):
+		if _is_blank(self.get("deduction_threshold_minutes")):
 			self.deduction_threshold_minutes = 30
-		if _is_blank(self.regular_daily_divisor):
+		if _is_blank(self.get("regular_daily_divisor")):
 			self.regular_daily_divisor = 30
-		if _is_blank(self.paid_leave_names):
+		if _is_blank(self.get("paid_leave_names")):
 			self.paid_leave_names = "年假,丧假"
-		if _is_blank(self.sync_leave_names):
+		if _is_blank(self.get("sync_leave_names")):
 			self.sync_leave_names = DEFAULT_SYNC_LEAVE_NAMES
-		if _is_blank(self.hour_based_leave_names):
+		if _is_blank(self.get("hour_based_leave_names")):
 			self.hour_based_leave_names = DEFAULT_HOUR_BASED_LEAVE_NAMES
-		if _is_blank(self.overtime_start_time):
+		if _is_blank(self.get("overtime_start_time")):
 			self.overtime_start_time = DEFAULT_OVERTIME_START_TIME
 		else:
 			normalized_time = normalize_time_string(self.overtime_start_time)
 			if normalized_time:
 				self.overtime_start_time = normalized_time
-		if _is_blank(self.overtime_min_minutes):
+		if _is_blank(self.get("overtime_min_minutes")):
 			self.overtime_min_minutes = 60
-		if _is_blank(self.overtime_step_minutes):
+		if _is_blank(self.get("overtime_step_minutes")):
 			self.overtime_step_minutes = 30
-		if _is_blank(self.overtime_cap_hours):
+		if _is_blank(self.get("overtime_cap_hours")):
 			self.overtime_cap_hours = 5
-		if _is_blank(self.overtime_hours_per_day):
+		if _is_blank(self.get("overtime_hours_per_day")):
 			self.overtime_hours_per_day = 7
-		if _is_blank(self.overtime_daily_divisor):
+		if _is_blank(self.get("overtime_daily_divisor")):
 			self.overtime_daily_divisor = 30
 		if not self.get("schedule_profiles"):
 			for profile in DEFAULT_PROFILES:
 				self.append("schedule_profiles", dict(profile))
 
 	def _validate_numbers(self):
+		if self.get("non_worker_rest_calculation_mode") not in NON_WORKER_REST_CALCULATION_MODES:
+			frappe.throw("非普工休息日计算方式只能选择 ISO单双休 或 固定月休天数。")
+		if self.get("non_worker_double_rest_week_parity") not in NON_WORKER_DOUBLE_REST_WEEK_PARITIES:
+			frappe.throw("双休周类型只能选择 单数周 或 双数周。")
+
 		non_negative_fields = (
 			("meal_unit_price", "餐补单价"),
-			("non_worker_monthly_rest_days", "非普工月休息日"),
+			("non_worker_monthly_rest_days", "固定月休息日"),
 			("deduction_threshold_minutes", "迟到早退起扣阈值"),
 			("overtime_min_minutes", "加班起步分钟"),
 			("overtime_cap_hours", "单日加班封顶小时"),

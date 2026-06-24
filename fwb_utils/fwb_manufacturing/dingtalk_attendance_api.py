@@ -1613,6 +1613,7 @@ def recalculate_salary_slip_attendance(salary_slip):
 		"paid_leave_days": factors.paid_leave_days,
 		"unpaid_leave_days": factors.unpaid_leave_days,
 		"legal_holiday_days": factors.legal_holiday_days,
+		"rest_days": factors.rest_days,
 		"expected_work_days": factors.expected_work_days,
 		"unpaid_absence_days": factors.unpaid_absence_days,
 		"late_minutes": factors.late_minutes,

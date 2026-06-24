@@ -26,15 +26,23 @@ function inject_salary_slip_piece_wage_css() {
 	if ($("#salary-slip-piece-wage-css").length) return;
 
 	const css = `
-		.salary-slip-piece-time-row [data-fieldname="rate"],
-		.salary-slip-piece-time-row [data-fieldname="duration_display"],
-		.salary-slip-piece-time-row [data-fieldname="amount"] {
+		/* 计时行（蓝）：整行文字变色，不加底色（业主：保持文字变色即可）。
+		   标注 class 加在子表行的 .data-row 元素上，文字色覆盖所有列与可编辑输入框。 */
+		.salary-slip-piece-time-row .grid-static-col,
+		.salary-slip-piece-time-row .grid-static-col *,
+		.salary-slip-piece-time-row input {
 			color: #0066cc !important;
 			font-weight: 600 !important;
 		}
 
+		/* 整行变红（仅文字，不加底色）：罚款行（返工有责需罚）
+		   或 该行总金额为负（手工录入扣除时按总金额正负实时反馈）。 */
 		.salary-slip-piece-penalty-row .grid-static-col,
-		.salary-slip-piece-penalty-row .grid-static-col * {
+		.salary-slip-piece-penalty-row .grid-static-col *,
+		.salary-slip-piece-penalty-row input,
+		.salary-slip-piece-negative-row .grid-static-col,
+		.salary-slip-piece-negative-row .grid-static-col *,
+		.salary-slip-piece-negative-row input {
 			color: #c62828 !important;
 			font-weight: 700 !important;
 		}
@@ -112,17 +120,15 @@ function refresh_piece_grid_row_styles(frm) {
 		const $data_row = $(row.row || row.$row || []);
 		if (!$data_row.length) return;
 
-		if (cint(doc.duration_seconds || 0) > 0) {
-			$data_row.addClass("salary-slip-piece-time-row");
-		} else {
-			$data_row.removeClass("salary-slip-piece-time-row");
-		}
+		const is_penalty = cint(doc.is_penalty || 0) === 1;
+		const is_negative = flt(doc.amount || 0) < 0;
+		const is_red = is_penalty || is_negative;
 
-		if (cint(doc.is_penalty || 0) === 1) {
-			$data_row.addClass("salary-slip-piece-penalty-row");
-		} else {
-			$data_row.removeClass("salary-slip-piece-penalty-row");
-		}
+		// 红优先（扣除信号）：罚款行 或 该行总金额为负 → 整行红字（手工录入时实时反馈）
+		$data_row.toggleClass("salary-slip-piece-penalty-row", is_penalty);
+		$data_row.toggleClass("salary-slip-piece-negative-row", is_negative && !is_penalty);
+		// 蓝仅在非红的计时行
+		$data_row.toggleClass("salary-slip-piece-time-row", !is_red && cint(doc.duration_seconds || 0) > 0);
 	});
 }
 
@@ -142,14 +148,29 @@ function setup_piece_grid_style_refresh(frm) {
 	if (!frm.fields_dict[PIECE_WAGE_DETAIL_FIELD] || !frm.fields_dict[PIECE_WAGE_DETAIL_FIELD].grid) return;
 
 	const grid = frm.fields_dict[PIECE_WAGE_DETAIL_FIELD].grid;
-	if (!grid._fwb_piece_wage_style_refresh_patched && typeof grid.refresh === "function") {
+	if (grid._fwb_piece_wage_render_patched) return;
+
+	// 同时覆盖「表单刷新」和「子表翻页」两条渲染路径：
+	// grid.refresh() 内部会调 render_result_rows()；而分页 go_to_page() 直接调
+	// render_result_rows()（grid_pagination.js）绕过 refresh —— 只有 patch
+	// render_result_rows 才能让翻到第 2 页后新建的行重新套上蓝/红整行标注。
+	if (typeof grid.render_result_rows === "function") {
+		const original_render = grid.render_result_rows.bind(grid);
+		grid.render_result_rows = function () {
+			const result = original_render(...arguments);
+			schedule_piece_grid_style_refresh(frm);
+			return result;
+		};
+		grid._fwb_piece_wage_render_patched = true;
+	} else if (typeof grid.refresh === "function") {
+		// 兜底：极旧版本 Frappe 无 render_result_rows 时退回 patch refresh
 		const original_refresh = grid.refresh.bind(grid);
 		grid.refresh = function () {
 			const result = original_refresh(...arguments);
 			schedule_piece_grid_style_refresh(frm);
 			return result;
 		};
-		grid._fwb_piece_wage_style_refresh_patched = true;
+		grid._fwb_piece_wage_render_patched = true;
 	}
 }
 
@@ -202,9 +223,14 @@ function add_attendance_recalculate_button(frm) {
 				const data = r.message || {};
 				frm.reload_doc();
 				frappe.show_alert({
-					message: __("已重算：实际到岗 {0} 天，记薪 {1} 天，餐补 {2} 天，迟到扣款 {3}，早退扣款 {4}，社保个人 {5}，净工资 {6}", [
+					message: __("已重算：实际到岗 {0} 天，带薪假 {1} 天，法定假 {2} 天，基础休息 {3} 天，记薪 {4}/{5} 天，整日无薪缺勤 {6} 天，餐补 {7} 天，迟到扣款 {8}，早退扣款 {9}，社保个人 {10}，净工资 {11}", [
 						data.actual_attendance_days || 0,
+						data.paid_leave_days || 0,
+						data.legal_holiday_days || 0,
+						data.rest_days || 0,
 						data.payment_days || 0,
+						data.expected_work_days || 0,
+						data.unpaid_absence_days || 0,
 						data.meal_days || 0,
 						data.late_deduction_amount || 0,
 						data.early_deduction_amount || 0,
