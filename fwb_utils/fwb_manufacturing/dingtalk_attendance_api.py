@@ -1576,6 +1576,23 @@ def sync_monthly_dingtalk_attendance():
 	return stat
 
 
+def _regular_worker_display_factors(start_date, payment_days):
+	"""普工弹窗展示口径（仅供「重新计算考勤与工资单」按钮返回前端显示，不参与工资计算）。
+
+	`get_attendance_payroll_factors` 的 rest_days / expected_work_days / unpaid_absence_days
+	是非普工 ISO 单双休口径，对普工无意义——普工底薪由结构公式按「应出勤 = 本月天数 − 1」
+	折算。这里按普工口径还原展示值（基础休息固定 1 天、应出勤 = 本月天数 − 1、
+	无薪缺勤 = max(0, 应出勤 − 记薪)），使弹窗与实际底薪自洽。
+	"""
+	month_days = get_last_day(start_date).day
+	expected = month_days - 1
+	return frappe._dict(
+		rest_days=month_days - expected,
+		expected_work_days=expected,
+		unpaid_absence_days=max(0.0, flt(expected) - flt(payment_days)),
+	)
+
+
 @frappe.whitelist()
 def recalculate_salary_slip_attendance(salary_slip):
 	"""草稿工资单按钮：重新读取 Attendance 并重算工资单。"""
@@ -1605,6 +1622,16 @@ def recalculate_salary_slip_attendance(salary_slip):
 		(flt(row.amount) for row in doc.get("deductions", []) if row.salary_component == EARLY_DEDUCTION_COMPONENT),
 		0,
 	)
+	# 普工弹窗口径修正（仅展示，不影响任何工资计算）：普工底薪用结构公式「应出勤=本月天数−1」，
+	# 故展示用 _regular_worker_display_factors，避免显示非普工 ISO 休息日/应出勤口径而误导核对。
+	if (doc.salary_structure or "") == REGULAR_WORKER_STRUCTURE:
+		display = _regular_worker_display_factors(doc.start_date, doc.payment_days)
+	else:
+		display = frappe._dict(
+			rest_days=factors.rest_days,
+			expected_work_days=factors.expected_work_days,
+			unpaid_absence_days=factors.unpaid_absence_days,
+		)
 	return {
 		"salary_slip": doc.name,
 		"payment_days": doc.payment_days,
@@ -1613,9 +1640,9 @@ def recalculate_salary_slip_attendance(salary_slip):
 		"paid_leave_days": factors.paid_leave_days,
 		"unpaid_leave_days": factors.unpaid_leave_days,
 		"legal_holiday_days": factors.legal_holiday_days,
-		"rest_days": factors.rest_days,
-		"expected_work_days": factors.expected_work_days,
-		"unpaid_absence_days": factors.unpaid_absence_days,
+		"rest_days": display.rest_days,
+		"expected_work_days": display.expected_work_days,
+		"unpaid_absence_days": display.unpaid_absence_days,
 		"late_minutes": factors.late_minutes,
 		"early_minutes": factors.early_minutes,
 		"meal_days": factors.meal_days,
