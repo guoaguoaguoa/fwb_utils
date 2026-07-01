@@ -2,6 +2,8 @@
 
 const PTV_WORKSTATION_FIELDS = [
     "woodworking_qty",
+    "mounting_qty",
+    "veneer_qty",
     "primer_qty",
     "top_coat_qty",
     "assembly_qty",

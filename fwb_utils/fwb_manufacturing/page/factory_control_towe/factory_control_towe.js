@@ -732,6 +732,8 @@ function render_workstation_progress($root, wsProgress, kpi) {
 
     const order = [
         "木工进度",
+        "裱纸进度",
+        "贴皮进度",
         "底漆进度",
         "面漆进度",
         "抛光进度",

@@ -49,6 +49,18 @@ def get_columns():
             "width": 80
         },
         {
+            "fieldname": "mounting_qty",
+            "label": "裱纸总数",
+            "fieldtype": "Int",
+            "width": 80
+        },
+        {
+            "fieldname": "veneer_qty",
+            "label": "贴皮总数",
+            "fieldtype": "Int",
+            "width": 80
+        },
+        {
             "fieldname": "primer_qty",
             "label": "底漆总数",
             "fieldtype": "Int",
@@ -124,6 +136,8 @@ def get_data(filters):
             
             /* 数据透视：按工作站汇总数量 */
             SUM(CASE WHEN wr.workstation = '木工房' THEN {eff_wr} ELSE 0 END) as woodworking_qty,
+            SUM(CASE WHEN wr.workstation = '裱纸区' THEN {eff_wr} ELSE 0 END) as mounting_qty,
+            SUM(CASE WHEN wr.workstation = '贴皮区' THEN {eff_wr} ELSE 0 END) as veneer_qty,
             SUM(CASE WHEN wr.workstation = '底漆房' THEN {eff_wr} ELSE 0 END) as primer_qty,
             SUM(CASE WHEN wr.workstation = '面漆房' THEN {eff_wr} ELSE 0 END) as top_coat_qty,
             SUM(CASE WHEN wr.workstation = '装配区' THEN {eff_wr} ELSE 0 END) as assembly_qty,
@@ -132,6 +146,8 @@ def get_data(filters):
 
             /* 隐藏辅助字段：截至结束日的该工单工作站累计数 */
             MAX(IFNULL(wr_cumulative_totals.woodworking_qty_cumulative, 0)) as woodworking_qty_cumulative,
+            MAX(IFNULL(wr_cumulative_totals.mounting_qty_cumulative, 0)) as mounting_qty_cumulative,
+            MAX(IFNULL(wr_cumulative_totals.veneer_qty_cumulative, 0)) as veneer_qty_cumulative,
             MAX(IFNULL(wr_cumulative_totals.primer_qty_cumulative, 0)) as primer_qty_cumulative,
             MAX(IFNULL(wr_cumulative_totals.top_coat_qty_cumulative, 0)) as top_coat_qty_cumulative,
             MAX(IFNULL(wr_cumulative_totals.assembly_qty_cumulative, 0)) as assembly_qty_cumulative,
@@ -153,6 +169,8 @@ def get_data(filters):
             SELECT
                 wr_cumulative.work_order,
                 SUM(CASE WHEN wr_cumulative.workstation = '木工房' THEN {eff_cum} ELSE 0 END) as woodworking_qty_cumulative,
+                SUM(CASE WHEN wr_cumulative.workstation = '裱纸区' THEN {eff_cum} ELSE 0 END) as mounting_qty_cumulative,
+                SUM(CASE WHEN wr_cumulative.workstation = '贴皮区' THEN {eff_cum} ELSE 0 END) as veneer_qty_cumulative,
                 SUM(CASE WHEN wr_cumulative.workstation = '底漆房' THEN {eff_cum} ELSE 0 END) as primer_qty_cumulative,
                 SUM(CASE WHEN wr_cumulative.workstation = '面漆房' THEN {eff_cum} ELSE 0 END) as top_coat_qty_cumulative,
                 SUM(CASE WHEN wr_cumulative.workstation = '装配区' THEN {eff_cum} ELSE 0 END) as assembly_qty_cumulative,

@@ -58,6 +58,18 @@ def get_columns():
             "width": 110,
         },
         {
+            "label": "裱纸单价",
+            "fieldname": "mounting_rate",
+            "fieldtype": "Currency",
+            "width": 110,
+        },
+        {
+            "label": "贴皮单价",
+            "fieldname": "veneer_rate",
+            "fieldtype": "Currency",
+            "width": 110,
+        },
+        {
             "label": "底漆单价",
             "fieldname": "primer_rate",
             "fieldtype": "Currency",
@@ -133,6 +145,8 @@ def get_data(filters):
             "size_w": bom_row.size_w,
             "size_h": bom_row.size_h,
             "wood_rate": rates.get("wood_rate", 0),
+            "mounting_rate": rates.get("mounting_rate", 0),
+            "veneer_rate": rates.get("veneer_rate", 0),
             "primer_rate": rates.get("primer_rate", 0),
             "topcoat_rate": rates.get("topcoat_rate", 0),
             "polish_rate": rates.get("polish_rate", 0),
@@ -201,6 +215,8 @@ def get_operation_rates_for_bom(bom_name):
 
     Workstation name mapping:
     - 木工房  -> wood_rate
+    - 裱纸区  -> mounting_rate
+    - 贴皮区  -> veneer_rate
     - 底漆房  -> primer_rate
     - 面漆房  -> topcoat_rate
     - 抛光区  -> polish_rate
@@ -209,6 +225,8 @@ def get_operation_rates_for_bom(bom_name):
     """
     rates = {
         "wood_rate": 0.0,
+        "mounting_rate": 0.0,
+        "veneer_rate": 0.0,
         "primer_rate": 0.0,
         "topcoat_rate": 0.0,
         "polish_rate": 0.0,
@@ -241,6 +259,10 @@ def get_operation_rates_for_bom(bom_name):
 
         if ws == "木工房":
             rates["wood_rate"] = rate_val
+        elif ws == "裱纸区":
+            rates["mounting_rate"] = rate_val
+        elif ws == "贴皮区":
+            rates["veneer_rate"] = rate_val
         elif ws == "底漆房":
             rates["primer_rate"] = rate_val
         elif ws == "面漆房":

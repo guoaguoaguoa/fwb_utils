@@ -12,6 +12,8 @@ from frappe.utils import nowdate, now_datetime, flt, cint, add_days, getdate, ge
 
 WORKSTATION_FLOW = (
     ("木工房", "木工", "木工进度"),
+    ("裱纸区", "裱纸", "裱纸进度"),
+    ("贴皮区", "贴皮", "贴皮进度"),
     ("底漆房", "底漆", "底漆进度"),
     ("面漆房", "面漆", "面漆进度"),
     ("抛光区", "抛光", "抛光进度"),
@@ -681,8 +683,11 @@ def _has_partial_flow(station_map, work_order_qty):
         if valid_qty <= 0 or index == 0:
             continue
 
+        # 只有“已开工但未完成”的前道工位（0 < valid < qty）才算流转不齐。
+        # 本工单没有活动的工位（valid == 0，例如产品不经过的裱纸/贴皮）视为
+        # 不在该产品工艺路线内，跳过，避免正常流转被误判为“部分流转”。
         previous_incomplete = any(
-            flt(station_map.get(prev_ws, {}).get("valid_qty") or 0) < work_order_qty
+            0 < flt(station_map.get(prev_ws, {}).get("valid_qty") or 0) < work_order_qty
             for prev_ws, _, _ in WORKSTATION_FLOW[:index]
         )
         if previous_incomplete:
@@ -704,14 +709,21 @@ def _get_flow_wait_label(station_map, work_order_qty, end_datetime):
     if last_completed_index is None:
         return "前道未完成"
 
-    next_index = last_completed_index + 1
-    if next_index >= len(WORKSTATION_FLOW):
+    if last_completed_index >= len(WORKSTATION_FLOW) - 1:
         return "已完成"
 
     completed_ws = WORKSTATION_FLOW[last_completed_index][0]
-    next_ws = WORKSTATION_FLOW[next_index][0]
     completed_at = station_map.get(completed_ws, {}).get("last_created_at")
-    next_started_at = station_map.get(next_ws, {}).get("first_created_at")
+
+    # “下道工位”取完成工位之后第一个本工单有活动的工位，跳过产品不经过的工位
+    # （如裱纸/贴皮对木盒为空）。若之后没有任何活动，则按“仍在等待下道”用截止时间。
+    next_started_at = None
+    for ws, _, _ in WORKSTATION_FLOW[last_completed_index + 1:]:
+        station = station_map.get(ws, {})
+        if flt(station.get("valid_qty") or 0) > 0 and station.get("first_created_at"):
+            next_started_at = station.get("first_created_at")
+            break
+
     wait_until = next_started_at or end_datetime
     if not completed_at or not wait_until:
         return "-"

@@ -4,9 +4,11 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt
 
-# 6 个生产工位（工序）。报工身份识别、扫码足量提醒、员工过滤共用这一份清单，
-# 避免常量散落在 Python / Client Script 多处导致漂移。
-PRODUCTION_WORKSTATIONS = ("木工房", "底漆房", "面漆房", "装配区", "抛光区", "软包区")
+# 8 个生产工位（工序）。报工身份识别、扫码足量提醒、员工过滤共用这一份清单。
+# 注意：扫码 Client Script (fixtures/client_script.json) 里的 prod_stations /
+# auto_prod_stations 两个数组必须与此常量保持一致，
+# 由 tests/test_workstation_constant_sync.py 断言防止静默漂移。
+PRODUCTION_WORKSTATIONS = ("木工房", "裱纸区", "贴皮区", "底漆房", "面漆房", "装配区", "抛光区", "软包区")
 
 
 class FWBWorkReport(Document):

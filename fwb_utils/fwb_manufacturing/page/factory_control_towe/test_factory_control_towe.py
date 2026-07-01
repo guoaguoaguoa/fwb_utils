@@ -270,3 +270,42 @@ class TestFactoryControlTower(FrappeTestCase):
 		self.assertEqual(by_work_order["WO-1"]["flow_wait"], "2天2小时")
 		self.assertEqual(by_work_order["WO-1"]["overall_tip"], "底漆进行中")
 		self.assertEqual(by_work_order["WO-2"]["overall_tip"], "部分流转")
+
+	def test_stage_overview_skips_optional_workstations_without_activity(self):
+		"""木盒跳过裱纸/贴皮：不应误判“部分流转”，流转等待跨过空工位正确计算；
+		纸盒经过裱纸：该工位有活动，正常参与当前工序与流转判定。"""
+		work_orders = {
+			"WO-WOOD": frappe._dict(name="WO-WOOD", item_name="木盒", qty=100),
+			"WO-PAPER": frappe._dict(name="WO-PAPER", item_name="纸盒", qty=100),
+		}
+		stage_rows = [
+			# 木盒：木工→底漆→面漆 全做完，裱纸/贴皮无报工（产品不经过）
+			frappe._dict(work_order="WO-WOOD", workstation="木工房", total_valid_qty=100,
+				first_created_at=datetime(2026, 4, 1, 9, 0, 0), last_created_at=datetime(2026, 4, 1, 9, 0, 0)),
+			frappe._dict(work_order="WO-WOOD", workstation="底漆房", total_valid_qty=100,
+				first_created_at=datetime(2026, 4, 2, 9, 0, 0), last_created_at=datetime(2026, 4, 2, 9, 0, 0)),
+			frappe._dict(work_order="WO-WOOD", workstation="面漆房", total_valid_qty=100,
+				first_created_at=datetime(2026, 4, 3, 9, 0, 0), last_created_at=datetime(2026, 4, 3, 9, 0, 0)),
+			# 纸盒：木工完成，裱纸进行中（有活动）
+			frappe._dict(work_order="WO-PAPER", workstation="木工房", total_valid_qty=100,
+				first_created_at=datetime(2026, 4, 1, 8, 0, 0), last_created_at=datetime(2026, 4, 1, 10, 0, 0)),
+			frappe._dict(work_order="WO-PAPER", workstation="裱纸区", total_valid_qty=30,
+				first_created_at=datetime(2026, 4, 3, 10, 0, 0), last_created_at=datetime(2026, 4, 3, 12, 0, 0)),
+		]
+
+		result = factory_control_towe._build_stage_overview(
+			work_orders,
+			stage_rows,
+			datetime(2026, 4, 6, 10, 0, 0),
+		)
+		by_wo = {row["work_order"]: row for row in result}
+
+		# 木盒：空的裱纸/贴皮被跳过，正常流转不应判为“部分流转”
+		self.assertEqual(by_wo["WO-WOOD"]["current_stage"], "面漆")
+		self.assertEqual(by_wo["WO-WOOD"]["overall_tip"], "面漆已完成")
+		# 面漆(04-03 09:00 完成)之后再无有活动的下道 → 按截止时间(04-06 10:00)等待
+		self.assertEqual(by_wo["WO-WOOD"]["flow_wait"], "3天1小时")
+
+		# 纸盒：裱纸有活动 → 当前工序=裱纸；木工(04-01 10:00 完成)→裱纸(04-03 10:00 开始)=2天
+		self.assertEqual(by_wo["WO-PAPER"]["current_stage"], "裱纸")
+		self.assertEqual(by_wo["WO-PAPER"]["flow_wait"], "2天")
