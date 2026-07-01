@@ -139,7 +139,7 @@ def get_production_progress(work_order=None, workstation=None):
     并与工单总数比较。数量口径复用 ``effective_qty_sql``（与 Employee Wage
     Sheet / 生产总数核对报表同一函数），不新增第二套口径。
 
-    仅 6 个生产工位参与；非生产工位或入参不全时安全返回 ``exceeded=False``。
+    仅 `PRODUCTION_WORKSTATIONS` 生产工位参与；非生产工位或入参不全时安全返回 ``exceeded=False``。
     """
     result = {
         "work_order": work_order,
@@ -197,7 +197,7 @@ def get_production_progress(work_order=None, workstation=None):
 def get_production_employee_query(doctype, txt, searchfield, start, page_len, filters):
     """FWB Work Report 用的员工过滤：
     - 只要 Active 员工
-    - 默认：在 Employee Operation 里，至少有一个工作站是 6 个生产工位之一
+    - 默认：在 Employee Operation 里，至少有一个工作站是 `PRODUCTION_WORKSTATIONS` 生产工位之一
     - 如果前端传入 filters.workstation，则只按该工作站过滤
     """
     text = f"%{txt or ''}%"
@@ -207,7 +207,7 @@ def get_production_employee_query(doctype, txt, searchfield, start, page_len, fi
     ws_filter = filters.get("workstation")
 
     # 如果指定了 workstation，则只按这个工作站过滤；
-    # 否则退回到默认的 6 个生产工位列表。
+    # 否则退回到默认的 `PRODUCTION_WORKSTATIONS` 生产工位列表。
     if ws_filter:
         workstations = (ws_filter,)
     else:

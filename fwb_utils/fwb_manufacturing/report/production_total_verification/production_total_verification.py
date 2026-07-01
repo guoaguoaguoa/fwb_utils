@@ -41,22 +41,10 @@ def get_columns():
             "fieldtype": "Int",
             "width": 90
         },
-        # --- 6个工作站统计 ---
+        # --- 8个工作站统计（列顺序：木工/底漆/面漆/装配/抛光/裱纸/贴皮/软包）---
         {
             "fieldname": "woodworking_qty",
             "label": "木工总数",
-            "fieldtype": "Int",
-            "width": 80
-        },
-        {
-            "fieldname": "mounting_qty",
-            "label": "裱纸总数",
-            "fieldtype": "Int",
-            "width": 80
-        },
-        {
-            "fieldname": "veneer_qty",
-            "label": "贴皮总数",
             "fieldtype": "Int",
             "width": 80
         },
@@ -81,6 +69,18 @@ def get_columns():
         {
             "fieldname": "polishing_qty",
             "label": "抛光总数",
+            "fieldtype": "Int",
+            "width": 80
+        },
+        {
+            "fieldname": "mounting_qty",
+            "label": "裱纸总数",
+            "fieldtype": "Int",
+            "width": 80
+        },
+        {
+            "fieldname": "veneer_qty",
+            "label": "贴皮总数",
             "fieldtype": "Int",
             "width": 80
         },

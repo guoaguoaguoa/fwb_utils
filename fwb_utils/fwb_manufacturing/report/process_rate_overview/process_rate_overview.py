@@ -51,21 +51,10 @@ def get_columns():
             "fieldtype": "Data",
             "width": 70,     # ← 缩短
         },
+        # 工站单价列顺序：木工/底漆/面漆/装配/抛光/裱纸/贴皮/软包
         {
             "label": "木工单价",
             "fieldname": "wood_rate",
-            "fieldtype": "Currency",
-            "width": 110,
-        },
-        {
-            "label": "裱纸单价",
-            "fieldname": "mounting_rate",
-            "fieldtype": "Currency",
-            "width": 110,
-        },
-        {
-            "label": "贴皮单价",
-            "fieldname": "veneer_rate",
             "fieldtype": "Currency",
             "width": 110,
         },
@@ -82,14 +71,26 @@ def get_columns():
             "width": 110,
         },
         {
+            "label": "装配单价",
+            "fieldname": "assembly_rate",
+            "fieldtype": "Currency",
+            "width": 110,
+        },
+        {
             "label": "抛光单价",
             "fieldname": "polish_rate",
             "fieldtype": "Currency",
             "width": 110,
         },
         {
-            "label": "装配单价",
-            "fieldname": "assembly_rate",
+            "label": "裱纸单价",
+            "fieldname": "mounting_rate",
+            "fieldtype": "Currency",
+            "width": 110,
+        },
+        {
+            "label": "贴皮单价",
+            "fieldname": "veneer_rate",
             "fieldtype": "Currency",
             "width": 110,
         },

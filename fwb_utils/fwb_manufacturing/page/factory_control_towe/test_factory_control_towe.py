@@ -309,3 +309,39 @@ class TestFactoryControlTower(FrappeTestCase):
 		# 纸盒：裱纸有活动 → 当前工序=裱纸；木工(04-01 10:00 完成)→裱纸(04-03 10:00 开始)=2天
 		self.assertEqual(by_wo["WO-PAPER"]["current_stage"], "裱纸")
 		self.assertEqual(by_wo["WO-PAPER"]["flow_wait"], "2天")
+
+	def test_stage_overview_route_aware_partial_flow(self):
+		"""路线感知（传入 BOM 工艺路线）：必经前道(在路线内)完全没报工→标记「部分流转」；
+		产品不经过的工位(不在路线内)为空→不误报。修 valid_qty=0 一刀切的盲区。"""
+		work_orders = {
+			"WO-A": frappe._dict(name="WO-A", item_name="木盒", qty=100),
+			"WO-B": frappe._dict(name="WO-B", item_name="木盒", qty=100),
+		}
+		stage_rows = [
+			# WO-A：必经木工完全没报工，底漆却已报 10 → 异常
+			frappe._dict(work_order="WO-A", workstation="底漆房", total_valid_qty=10,
+				first_created_at=datetime(2026, 4, 2, 9, 0, 0), last_created_at=datetime(2026, 4, 2, 9, 0, 0)),
+			# WO-B：木工/底漆/面漆做完，裱纸/贴皮不在路线且为空 → 正常
+			frappe._dict(work_order="WO-B", workstation="木工房", total_valid_qty=100,
+				first_created_at=datetime(2026, 4, 1, 9, 0, 0), last_created_at=datetime(2026, 4, 1, 9, 0, 0)),
+			frappe._dict(work_order="WO-B", workstation="底漆房", total_valid_qty=100,
+				first_created_at=datetime(2026, 4, 2, 9, 0, 0), last_created_at=datetime(2026, 4, 2, 9, 0, 0)),
+			frappe._dict(work_order="WO-B", workstation="面漆房", total_valid_qty=100,
+				first_created_at=datetime(2026, 4, 3, 9, 0, 0), last_created_at=datetime(2026, 4, 3, 9, 0, 0)),
+		]
+		wood_route = {"木工房", "底漆房", "面漆房", "抛光区", "装配区", "软包区"}
+		route_map = {"WO-A": wood_route, "WO-B": wood_route}
+
+		result = factory_control_towe._build_stage_overview(
+			work_orders,
+			stage_rows,
+			datetime(2026, 4, 5, 10, 0, 0),
+			route_map,
+		)
+		by_wo = {row["work_order"]: row for row in result}
+
+		# WO-A：必经木工(在路线内)为 0、底漆已报 → 部分流转（异常被surfaced）
+		self.assertEqual(by_wo["WO-A"]["overall_tip"], "部分流转")
+		# WO-B：裱纸/贴皮不在路线、为空 → 不误报“部分流转”
+		self.assertNotEqual(by_wo["WO-B"]["overall_tip"], "部分流转")
+		self.assertEqual(by_wo["WO-B"]["current_stage"], "面漆")

@@ -598,6 +598,7 @@ def _get_stage_overview(from_date, to_date, dashboard_filters=None):
             name,
             item_name,
             qty,
+            bom_no,
             planned_start_date
         FROM `tabWork Order`
         WHERE name IN %(names)s
@@ -611,10 +612,35 @@ def _get_stage_overview(from_date, to_date, dashboard_filters=None):
         work_orders,
         stage_rows,
         _get_stage_end_datetime(to_date),
+        _get_work_order_routes(wo_rows),
     )
 
 
-def _build_stage_overview(work_orders, stage_rows, end_datetime):
+def _get_work_order_routes(wo_rows):
+    """按工单返回其 BOM 工艺路线内的工位集合（`BOM Operation.workstation`）。
+
+    用于区分“该产品工艺路线不经过的可选工序”（如木盒不经过裱纸/贴皮）与
+    “必经但尚未报工的工序”，避免只凭报工数量是否为 0 来判断可选性。
+    """
+    bom_nos = {row.get("bom_no") for row in wo_rows if row.get("bom_no")}
+    bom_routes = {}
+    if bom_nos:
+        op_rows = frappe.db.sql(
+            """
+            SELECT parent, workstation
+            FROM `tabBOM Operation`
+            WHERE parent IN %(boms)s AND IFNULL(workstation, '') != ''
+            """,
+            {"boms": tuple(bom_nos)},
+            as_dict=True,
+        )
+        for op in op_rows:
+            bom_routes.setdefault(op.parent, set()).add(op.workstation)
+    return {row.name: bom_routes.get(row.get("bom_no")) or set() for row in wo_rows}
+
+
+def _build_stage_overview(work_orders, stage_rows, end_datetime, route_map=None):
+    route_map = route_map or {}
     by_work_order = {}
     for row in stage_rows:
         if row.work_order not in work_orders or row.workstation not in WORKSTATION_ORDER:
@@ -629,6 +655,7 @@ def _build_stage_overview(work_orders, stage_rows, end_datetime):
     result = []
     for work_order_name, wo in work_orders.items():
         station_map = by_work_order.get(work_order_name, {})
+        route = route_map.get(work_order_name) or set()
         qty = flt(wo.qty or 0)
         reported_stations = [
             ws for ws, _, _ in WORKSTATION_FLOW
@@ -642,8 +669,8 @@ def _build_stage_overview(work_orders, stage_rows, end_datetime):
         else:
             current_ws = max(reported_stations, key=lambda ws: WORKSTATION_ORDER[ws])
             current_stage = WORKSTATION_LABELS[current_ws]
-            partial_flow = _has_partial_flow(station_map, qty)
-            flow_wait = _get_flow_wait_label(station_map, qty, end_datetime)
+            partial_flow = _has_partial_flow(station_map, qty, route)
+            flow_wait = _get_flow_wait_label(station_map, qty, end_datetime, route)
 
             current_valid = flt(station_map.get(current_ws, {}).get("valid_qty") or 0)
             if partial_flow:
@@ -674,20 +701,18 @@ def _build_stage_overview(work_orders, stage_rows, end_datetime):
     return result[:50]
 
 
-def _has_partial_flow(station_map, work_order_qty):
+def _has_partial_flow(station_map, work_order_qty, route=None):
     if work_order_qty <= 0:
         return False
+    route = route or set()
 
     for index, (ws, _, _) in enumerate(WORKSTATION_FLOW):
         valid_qty = flt(station_map.get(ws, {}).get("valid_qty") or 0)
         if valid_qty <= 0 or index == 0:
             continue
 
-        # 只有“已开工但未完成”的前道工位（0 < valid < qty）才算流转不齐。
-        # 本工单没有活动的工位（valid == 0，例如产品不经过的裱纸/贴皮）视为
-        # 不在该产品工艺路线内，跳过，避免正常流转被误判为“部分流转”。
         previous_incomplete = any(
-            0 < flt(station_map.get(prev_ws, {}).get("valid_qty") or 0) < work_order_qty
+            _upstream_blocks_flow(prev_ws, station_map, work_order_qty, route)
             for prev_ws, _, _ in WORKSTATION_FLOW[:index]
         )
         if previous_incomplete:
@@ -696,9 +721,27 @@ def _has_partial_flow(station_map, work_order_qty):
     return False
 
 
-def _get_flow_wait_label(station_map, work_order_qty, end_datetime):
+def _upstream_blocks_flow(prev_ws, station_map, work_order_qty, route):
+    """前道工位是否构成“流转不齐（后道已开工、前道未完成）”。
+
+    - 已知工艺路线（route 非空）：只有**在该产品 BOM 工艺路线内**且未完成（含完全
+      没报工，valid=0）的前道才算阻塞异常；产品不经过的工位（不在 route 内）跳过。
+      这样「底漆已报、必经的木工为 0」会被正确标记，而木盒不经过的空裱纸/贴皮不会误报。
+    - 路线未知（route 为空，如缺 BOM 工序数据）：退回启发式，仅把“已开工但未完成”
+      （0 < valid < qty）算作阻塞，避免可选工序空值造成误报。
+    """
+    prev_valid = flt(station_map.get(prev_ws, {}).get("valid_qty") or 0)
+    if prev_valid >= work_order_qty:
+        return False
+    if route:
+        return prev_ws in route
+    return prev_valid > 0
+
+
+def _get_flow_wait_label(station_map, work_order_qty, end_datetime, route=None):
     if work_order_qty <= 0:
         return "-"
+    route = route or set()
 
     last_completed_index = None
     for index, (ws, _, _) in enumerate(WORKSTATION_FLOW):
@@ -709,21 +752,28 @@ def _get_flow_wait_label(station_map, work_order_qty, end_datetime):
     if last_completed_index is None:
         return "前道未完成"
 
-    if last_completed_index >= len(WORKSTATION_FLOW) - 1:
-        return "已完成"
+    downstream = WORKSTATION_FLOW[last_completed_index + 1:]
+
+    if route:
+        # 路线已知：只看工艺路线内、完成工序之后的工位；没有则该产品路线已走完。
+        route_downstream = [ws for ws, _, _ in downstream if ws in route]
+        if not route_downstream:
+            return "已完成"
+        next_started_at = station_map.get(route_downstream[0], {}).get("first_created_at")
+    else:
+        # 路线未知：完成工序是流程最后一个才算“已完成”，否则取之后第一个有活动的工位；
+        # 若之后没有任何活动，则按“仍在等待下道”用截止时间计算。
+        if not downstream:
+            return "已完成"
+        next_started_at = None
+        for ws, _, _ in downstream:
+            station = station_map.get(ws, {})
+            if flt(station.get("valid_qty") or 0) > 0 and station.get("first_created_at"):
+                next_started_at = station.get("first_created_at")
+                break
 
     completed_ws = WORKSTATION_FLOW[last_completed_index][0]
     completed_at = station_map.get(completed_ws, {}).get("last_created_at")
-
-    # “下道工位”取完成工位之后第一个本工单有活动的工位，跳过产品不经过的工位
-    # （如裱纸/贴皮对木盒为空）。若之后没有任何活动，则按“仍在等待下道”用截止时间。
-    next_started_at = None
-    for ws, _, _ in WORKSTATION_FLOW[last_completed_index + 1:]:
-        station = station_map.get(ws, {})
-        if flt(station.get("valid_qty") or 0) > 0 and station.get("first_created_at"):
-            next_started_at = station.get("first_created_at")
-            break
-
     wait_until = next_started_at or end_datetime
     if not completed_at or not wait_until:
         return "-"
