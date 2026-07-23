@@ -29,16 +29,41 @@ frappe.query_reports["Work Report Log"] = {
         if (window.innerWidth < 992) {
             // 注入防误触 CSS (隐藏顶部菜单)
             inject_kiosk_css();
-            
+
             // 注入底部自定义按钮栏
             inject_mobile_toolbar(report);
         }
+
+        // === 3. 备注点击弹出完整内容（委托绑定，翻页/重渲染后仍有效）===
+        bind_remark_popup(report);
     },
     
-    // 3. 开启合计行
+    // 3. 整行配色（口径同 salary_slip.js）：罚款/计时蓝，红/蓝 token 由服务端 _style 决定。
+    //    备注列：内容常被列宽截断，做成可点击、点开弹出完整备注（见 onload 的委托点击）。
+    "formatter": function(value, row, column, data, default_formatter) {
+        if (column.fieldname === "remarks" && data && data.remarks) {
+            const enc = encodeURIComponent(data.remarks);
+            value = `<span class="wrl-remark" data-remark="${enc}" `
+                  + `title="${__("点击查看完整备注")}" `
+                  + `style="cursor:pointer;border-bottom:1px dashed currentColor;">`
+                  + `${frappe.utils.escape_html(data.remarks)}</span>`;
+        } else {
+            value = default_formatter(value, row, column, data);
+        }
+
+        if (data && data._style === "red") {
+            return `<span style="color:#c62828;font-weight:700;">${value}</span>`;
+        }
+        if (data && data._style === "blue") {
+            return `<span style="color:#0066cc;font-weight:600;">${value}</span>`;
+        }
+        return value;
+    },
+
+    // 合计由服务端按带符号金额追加（罚款/扣款为负），关掉 datatable 自带 sumRow 防重复。
     "get_datatable_options": function(options) {
         return Object.assign(options, {
-            sumRow: true
+            sumRow: false
         });
     }
 };
@@ -76,7 +101,7 @@ function get_work_report_log_filters() {
         filters.push(
             {
                 "fieldname": "employee_name",
-                "label": __("员工姓名"),
+                "label": __("员工(ID/姓名)"),
                 "fieldtype": "Data"
             },
             {
@@ -207,4 +232,26 @@ function inject_kiosk_css() {
     if (!$('#report-kiosk-css').length) {
         $('<style id="report-kiosk-css">' + css + '</style>').appendTo('head');
     }
+}
+
+// 备注列内容常被列宽截断，工人看不全被扣原因。这里用「委托点击」在整个报表容器上监听
+// .wrl-remark（由 formatter 渲染），点击后弹出小窗显示完整备注。委托绑定不受翻页/重渲染影响。
+function bind_remark_popup(report) {
+    const $wrapper = $(report.page.wrapper);
+    $wrapper.off('click.wrlRemark').on('click.wrlRemark', '.wrl-remark', function(e) {
+        e.stopPropagation();
+        const enc = $(this).attr('data-remark');
+        if (!enc) return;
+        let full = '';
+        try {
+            full = decodeURIComponent(enc);
+        } catch (err) {
+            full = enc;
+        }
+        frappe.msgprint({
+            title: __('备注详情'),
+            indicator: 'blue',
+            message: `<div style="white-space:pre-wrap;word-break:break-word;">${frappe.utils.escape_html(full)}</div>`
+        });
+    });
 }

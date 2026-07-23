@@ -21,9 +21,9 @@
    "width": 1
   },
   {
-   "fieldname": "rework_type",
+   "fieldname": "remarks",
    "fieldtype": "Data",
-   "label": "\u662f\u5426\u8fd4\u5de5",
+   "label": "\u5907\u6ce8",
    "width": 1
   },
   {

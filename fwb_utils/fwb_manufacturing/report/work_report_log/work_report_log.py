@@ -1,13 +1,25 @@
-# v2026.05.18.01 - 工人/管理双视图报工记录
-# - valid_qty / 金额 改用集中 effective_qty_sql 口径 (与工资表/各报表统一)
+# v2026.07.23.01 - 计件工资结算视图：向工资单口径靠拢
+# - 行范围/罚款/手工行/单价/计时判据(duration_seconds>0) 全部复用工资单结算数据，
+#   不再由本报表自行写 SQL CASE，杜绝「报表金额 ≠ 工人实发计件额」的漂移。
+# - 有工资单（期间与工资单起止完全一致）读工资单 custom_piece_wage_details 明细，
+#   含手工扣款/补贴行；否则按结算口径 `_collect_aggregated_rows` 实时预览。
+# - 罚款行/负额红、计时行蓝，配色口径与 public/js/salary_slip.js 一致。
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import cint, flt, get_datetime, getdate
 
-from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import (
-    effective_qty_sql,
+from fwb_utils.fwb_manufacturing.doctype.employee_wage_sheet.employee_wage_sheet import (
+    _collect_aggregated_rows,
+    _format_duration_display,
 )
+
+PIECE_WAGE_STRUCTURE = "无底薪计件工结构"
+PIECE_WAGE_DETAIL_FIELD = "custom_piece_wage_details"
+
+# 与 public/js/salary_slip.js 一致的整行文字配色
+COLOR_RED = "#c62828"   # 罚款行 / 该行金额为负（扣款）
+COLOR_BLUE = "#0066cc"  # 计时行
 
 
 MANAGER_VIEW_ROLES = (
@@ -19,251 +31,281 @@ MANAGER_VIEW_ROLES = (
 	"Purchase Master Manager",
 )
 
+
 def execute(filters=None):
     columns = get_columns()
     data = get_data(filters)
-    
-    # === [修复点] 计算合计行 ===
+
+    # === 合计行（金额已按结算口径带符号：罚款/扣款为负，合计即净计件额）===
     if data:
-        total_qty = 0.0 # 初始化为浮点数
+        total_qty = 0.0
         total_amount = 0.0
-        
         for row in data:
-            # 使用 flt() 强制转换为数字，防止数据库返回字符串导致报错
             total_qty += flt(row.get("produce_qty"))
             total_amount += flt(row.get("amount"))
-            
-        # 在数据末尾追加一行合计
+
         data.append({
-            "report_date": "<b>合计</b>", 
-            "report_num": "",
-            "work_order": "",
+            "report_date": "<b>合计</b>",
             "product_name": "",
             "wage_type": "",
-            "rework_type": "",
-            "produce_qty": total_qty,     
+            "remarks": "",
+            "produce_qty": total_qty,
             "piece_rate": None,
             "duration_display": "",
-            "amount": total_amount        
+            "amount": total_amount,
+            "report_num": "",
+            "work_order": "",
+            "_style": "",
         })
-        
+
     return columns, data
 
+
 def get_columns():
-    # === 设备检测逻辑 ===
-    user_agent = frappe.request.headers.get('User-Agent', '').lower()
+    # === 设备检测：手机端工单号不可点，电脑端可点 ===
+    user_agent = frappe.request.headers.get('User-Agent', '').lower() if frappe.request else ''
     is_mobile = 'mobile' in user_agent or 'android' in user_agent or 'iphone' in user_agent
-    
-    # 手机端：工单号 = Data (不可点)
-    # 电脑端：工单号 = Link (可点)
+
     wo_fieldtype = "Data" if is_mobile else "Link"
     wo_options = None if is_mobile else "Work Order"
 
     return [
-        {
-            "fieldname": "report_date",
-            "label": "日期",
-            "fieldtype": "Data", 
-            "width": 80,
-            "align": "left"
-        },
-        {
-            "fieldname": "product_name",
-            "label": "产品名",
-            "fieldtype": "Data",
-            "width": 120
-        },
-        {
-            "fieldname": "wage_type",
-            "label": "方式",
-            "fieldtype": "Data",
-            "width": 50
-        },
-        {
-            "fieldname": "rework_type",
-            "label": "是否返工",
-            "fieldtype": "Data",
-            "width": 90
-        },
-        {
-            "fieldname": "produce_qty",
-            "label": "数",
-            "fieldtype": "Int",
-            "width": 50
-        },
-        {
-            "fieldname": "piece_rate",
-            "label": "价",
-            "fieldtype": "Float",
-            "width": 60,
-            "precision": 2
-        },
-        {
-            "fieldname": "duration_display",
-            "label": "工时",
-            "fieldtype": "Data",
-            "width": 120
-        },
-        {
-            "fieldname": "amount",
-            "label": "金额",
-            "fieldtype": "Currency",
-            "width": 120
-        },
-        # === 报工单号 ===
-        {
-            "fieldname": "report_num",
-            "label": "报工单号",
-            "fieldtype": "Link",
-            "options": "FWB Work Report",
-            "width": 100
-        },
-        # === 工单号 (动态类型) ===
-        {
-            "fieldname": "work_order",
-            "label": "工单号",
-            "fieldtype": wo_fieldtype, 
-            "options": wo_options,
-            "width": 100
-        }
+        {"fieldname": "report_date", "label": "日期", "fieldtype": "Data", "width": 80, "align": "left"},
+        {"fieldname": "product_name", "label": "产品名", "fieldtype": "Data", "width": 120},
+        {"fieldname": "wage_type", "label": "方式", "fieldtype": "Data", "width": 70},
+        {"fieldname": "produce_qty", "label": "数", "fieldtype": "Int", "width": 50},
+        {"fieldname": "piece_rate", "label": "单价", "fieldtype": "Float", "width": 60, "precision": 2},
+        {"fieldname": "duration_display", "label": "工时", "fieldtype": "Data", "width": 110},
+        {"fieldname": "amount", "label": "金额", "fieldtype": "Currency", "width": 110},
+        # 备注移到倒数第三列；内容常被列宽截断，前端 formatter 让有备注的行可点击弹出完整内容。
+        {"fieldname": "remarks", "label": "备注", "fieldtype": "Data", "width": 130},
+        {"fieldname": "report_num", "label": "报工单号", "fieldtype": "Link", "options": "FWB Work Report", "width": 100},
+        {"fieldname": "work_order", "label": "工单号", "fieldtype": wo_fieldtype, "options": wo_options, "width": 100},
     ]
+
 
 def get_data(filters):
     filters = frappe._dict(filters or {})
-    where_clauses = ["wr.docstatus < 2"]
-
-    employee_scope = get_employee_scope_condition()
-    if employee_scope is None:
+    if not filters.get("from_date") or not filters.get("to_date"):
         return []
 
-    scope_condition, scope_params = employee_scope
-    if scope_condition:
-        where_clauses.append(scope_condition)
+    from_date = getdate(filters.get("from_date"))
+    to_date = getdate(filters.get("to_date"))
 
-    conditions, condition_params = get_conditions(filters)
-    where_clauses.extend(conditions)
-    params = {}
-    params.update(scope_params)
-    params.update(condition_params)
-    where_sql = " AND ".join(where_clauses)
+    user = get_current_user()
+    if has_manager_view_access(user):
+        employees = _resolve_target_employees(filters, from_date, to_date)
+    else:
+        # 工人：强制只看本人，忽略任何 employee_name 过滤，防止越权看他人工资。
+        employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
+        if not employee:
+            frappe.msgprint(_("当前账号未关联员工档案，无法查看个人报表。"))
+            return []
+        employees = [employee]
 
-    # 统一有效结算数量口径 (与 Employee Wage Sheet / 其它报表共用同一函数)
-    eff_qty = effective_qty_sql("wr")
+    rows = []
+    for employee in employees:
+        rows.extend(_build_employee_rows(employee, from_date, to_date))
 
-    # 2. 核心 SQL 查询
-    sql = f"""
-        SELECT
-            DATE_FORMAT(wr.created_at, '%%m-%%d') as report_date,
+    rows = _apply_row_filters(rows, filters)
+    _fill_report_dates(rows)
+    rows.sort(key=lambda r: (r.get("_sort_ts") or ""), reverse=True)
+    return rows
 
-            wr.name as report_num,
 
-            wr.work_order,
-            COALESCE(wo.item_name, wo.production_item) as product_name,
-            wr.wage_type,
-            CASE WHEN wr.rework_type = '否' THEN '' ELSE wr.rework_type END as rework_type,
-            {eff_qty} as produce_qty,
-            
-            /* ========== 单价优先级逻辑 ========== */
-            CASE 
-                /* 第1层：【返工单价】 */
-                WHEN wr.rework_type = '有偿返工' AND IFNULL(wr.rework_rate, 0) > 0 
-                    THEN wr.rework_rate
-                
-                /* 第2层：【BOM 工时费】 */
-                WHEN IFNULL(bom_op.hour_rate, 0) > 0 
-                    THEN bom_op.hour_rate
-                
-                /* 第3层：【BOM 计件单价】 */
-                WHEN IFNULL(bom_op.custom_piece_rate, 0) > 0 
-                    THEN bom_op.custom_piece_rate
-                
-                /* 第4层：【报工单 时薪】 */
-                WHEN IFNULL(wr.hourly_rate, 0) > 0 
-                    THEN wr.hourly_rate
-                
-                /* 第5层：【报工单 计件单价】 (默认保底) */
-                ELSE IFNULL(wr.custom_piece_rate, 0)
-            END as piece_rate,
-            
-            wr.duration_display,
+def _build_employee_rows(employee, from_date, to_date):
+    """一个员工在该期间的计件结算行：有对应工资单读工资单，否则实时预览。"""
+    slip = _find_exact_period_piece_wage_slip(employee, from_date, to_date)
+    if slip:
+        return [_normalize_slip_row(r) for r in _read_slip_detail_rows(slip)]
 
-            /* ========== 金额实时计算 (与 Employee Wage Summary 口径对齐) ==========
-               原本读 wr.total_amount 会把陈旧值带出来 (例如老报工 hourly_rate=0
-               但 BOM hour_rate 后来设过来), 改为按当前 BOM + 报工字段实时算. */
-            CASE
-                /* 计时: BOM hour_rate -> 报工 hourly_rate */
-                WHEN wr.wage_type = '计时' THEN
-                    (IFNULL(wr.duration, 0) / 3600.0) *
-                    CASE
-                        WHEN IFNULL(bom_op.hour_rate, 0) > 0 THEN bom_op.hour_rate
-                        ELSE IFNULL(wr.hourly_rate, 0)
-                    END
+    raw_rows = _collect_aggregated_rows(employee, str(from_date), str(to_date))
+    return [_normalize_preview_row(r) for r in raw_rows]
 
-                /* 有偿返工: 报工 rework_rate */
-                WHEN wr.rework_type = '有偿返工' AND IFNULL(wr.rework_rate, 0) > 0 THEN
-                    {eff_qty} * wr.rework_rate
 
-                /* 普通计件 / 无偿返工: BOM custom_piece_rate -> 报工 custom_piece_rate */
-                ELSE
-                    {eff_qty} *
-                    CASE
-                        WHEN IFNULL(bom_op.custom_piece_rate, 0) > 0 THEN bom_op.custom_piece_rate
-                        ELSE IFNULL(wr.custom_piece_rate, 0)
-                    END
-            END as amount
+def _find_exact_period_piece_wage_slip(employee, from_date, to_date):
+    """仅当报表期间与工资单起止完全一致时才读工资单，避免子区间被整月工资单放大。"""
+    slips = frappe.get_all(
+        "Salary Slip",
+        filters={
+            "employee": employee,
+            "salary_structure": PIECE_WAGE_STRUCTURE,
+            "start_date": from_date,
+            "end_date": to_date,
+            "docstatus": ["<", 2],
+        },
+        fields=["name"],
+        order_by="docstatus desc, modified desc",
+        limit=1,
+    )
+    return slips[0].name if slips else None
 
-        FROM
-            `tabFWB Work Report` wr
-        LEFT JOIN
-            `tabWork Order` wo ON wr.work_order = wo.name
-        
-        LEFT JOIN
-            `tabBOM Operation` bom_op 
-            ON bom_op.parent = wo.bom_no 
-            AND bom_op.workstation = wr.workstation
-        
-        WHERE
-            {where_sql}
-            
-        ORDER BY
-            wr.created_at DESC
+
+def _read_slip_detail_rows(slip_name):
+    """读工资单计件明细子表（含手工扣款/补贴行、罚款行）。"""
+    return frappe.get_all(
+        "Employee Wage Sheet Detail",
+        filters={
+            "parent": slip_name,
+            "parenttype": "Salary Slip",
+            "parentfield": PIECE_WAGE_DETAIL_FIELD,
+        },
+        fields=[
+            "source_work_report", "work_order", "product_name", "workstation",
+            "qty", "rate", "duration_seconds", "duration_display",
+            "amount", "is_penalty", "remarks",
+        ],
+        order_by="idx asc",
+    )
+
+
+def _normalize_slip_row(raw):
+    is_penalty = cint(raw.get("is_penalty"))
+    duration = cint(raw.get("duration_seconds"))
+    amount = _display_amount(is_penalty, raw.get("amount"))
+    source_wr = raw.get("source_work_report") or ""
+    return frappe._dict({
+        "report_date": "",  # 稍后按报工单 created_at 回填
+        "product_name": raw.get("product_name") or "",
+        "wage_type": _wage_type_label(is_penalty, source_wr, duration),
+        "remarks": raw.get("remarks") or "",
+        "produce_qty": flt(raw.get("qty")),
+        "piece_rate": flt(raw.get("rate")),
+        "duration_display": raw.get("duration_display") or "",
+        "amount": amount,
+        "report_num": source_wr,
+        "work_order": raw.get("work_order") or "",
+        "workstation": raw.get("workstation") or "",
+        "_style": _row_style(is_penalty, amount, duration),
+        "_source_wr": source_wr,
+    })
+
+
+def _normalize_preview_row(raw):
+    is_penalty = cint(raw.get("is_penalty"))
+    duration = cint(raw.get("total_duration_seconds"))
+    qty = flt(raw.get("total_valid_qty"))
+    rate = flt(raw.get("rate"))
+    amount = _display_amount(is_penalty, _preview_row_amount(qty, duration, rate))
+    source_wr = raw.get("work_report") or ""
+    return frappe._dict({
+        "report_date": "",
+        "product_name": raw.get("product_name") or "",
+        "wage_type": _wage_type_label(is_penalty, source_wr, duration),
+        "remarks": raw.get("remarks") or "",
+        "produce_qty": qty,
+        "piece_rate": rate,
+        "duration_display": _format_duration_display(duration),
+        "amount": amount,
+        "report_num": source_wr,
+        "work_order": raw.get("work_order") or "",
+        "workstation": raw.get("workstation") or "",
+        "_style": _row_style(is_penalty, amount, duration),
+        "_source_wr": source_wr,
+    })
+
+
+def _preview_row_amount(qty, duration_seconds, rate):
+    """与工资单 _calculate_row_amount 一致：duration_seconds>0 走计时，否则计件。"""
+    if cint(duration_seconds) > 0:
+        return flt(duration_seconds) / 3600.0 * flt(rate)
+    return flt(qty) * flt(rate)
+
+
+def _display_amount(is_penalty, amount):
+    """罚款行按扣款展示为负数，使合计=净计件额、且负额红字口径统一。"""
+    amt = flt(amount)
+    if cint(is_penalty):
+        return -abs(amt)
+    return amt
+
+
+def _wage_type_label(is_penalty, source_work_report, duration_seconds):
+    if cint(is_penalty):
+        return "返工罚款"
+    if not source_work_report:
+        return "手工"
+    return "计时" if cint(duration_seconds) > 0 else "计件"
+
+
+def _row_style(is_penalty, amount, duration_seconds):
+    """配色口径同 salary_slip.js：罚款/负额红（红优先），计时蓝。"""
+    if cint(is_penalty) or flt(amount) < 0:
+        return "red"
+    if cint(duration_seconds) > 0:
+        return "blue"
+    return ""
+
+
+def _apply_row_filters(rows, filters):
+    product = (filters.get("product_name") or "").strip()
+    work_order = (filters.get("work_order") or "").strip()
+    workstation = (filters.get("workstation") or "").strip()
+
+    if not (product or work_order or workstation):
+        return rows
+
+    out = []
+    for r in rows:
+        if product and product not in (r.get("product_name") or ""):
+            continue
+        if work_order and (r.get("work_order") or "") != work_order:
+            continue
+        if workstation and (r.get("workstation") or "") != workstation:
+            continue
+        out.append(r)
+    return out
+
+
+def _resolve_target_employees(filters, from_date, to_date):
+    """管理视角的员工集合：按结算口径(docstatus=1)在期间内有报工的员工。
+
+    员工姓名过滤与 employee_wage_summary 口径一致——ID 或姓名都能搜（去除漂移 A）。
     """
-    
-    data = frappe.db.sql(sql, params, as_dict=True)
-    return data
+    keyword = (filters.get("employee_name") or "").strip()
+    params = {
+        "from_date": f"{from_date} 00:00:00",
+        "to_date": f"{to_date} 23:59:59",
+    }
+    where = [
+        "wr.docstatus = 1",
+        "wr.created_at >= %(from_date)s",
+        "wr.created_at <= %(to_date)s",
+        "wr.employee IS NOT NULL",
+        "wr.employee != ''",
+    ]
+    if keyword:
+        params["kw"] = f"%{keyword}%"
+        where.append("(wr.employee_name_display LIKE %(kw)s OR wr.employee LIKE %(kw)s)")
 
-def get_conditions(filters):
-    filters = frappe._dict(filters or {})
-    conditions = []
-    params = {}
+    sql = f"""
+        SELECT DISTINCT wr.employee
+        FROM `tabFWB Work Report` wr
+        WHERE {" AND ".join(where)}
+    """
+    return [row[0] for row in frappe.db.sql(sql, params)]
 
-    if filters.get("from_date"):
-        params["from_date"] = f"{filters.get('from_date')} 00:00:00"
-        conditions.append("wr.created_at >= %(from_date)s")
-    if filters.get("to_date"):
-        params["to_date"] = f"{filters.get('to_date')} 23:59:59"
-        conditions.append("wr.created_at <= %(to_date)s")
-    if filters.get("work_order"):
-        params["work_order"] = filters.get("work_order")
-        conditions.append("wr.work_order = %(work_order)s")
 
-    product_name = (filters.get("product_name") or "").strip()
-    if product_name:
-        params["product_name"] = f"%{product_name}%"
-        conditions.append("wo.item_name LIKE %(product_name)s")
-
-    employee_name = (filters.get("employee_name") or "").strip()
-    if employee_name:
-        params["employee_name"] = f"%{employee_name}%"
-        conditions.append(
-            "COALESCE(NULLIF(wr.employee_name_display, ''), NULLIF(wr.employee_name, ''), wr.employee, '') LIKE %(employee_name)s"
+def _fill_report_dates(rows):
+    """按报工单 created_at 回填日期列并生成排序时间戳；手工行无报工单则留空。"""
+    wr_names = tuple({r.get("_source_wr") for r in rows if r.get("_source_wr")})
+    date_map = {}
+    if wr_names:
+        res = frappe.db.sql(
+            "SELECT name, created_at FROM `tabFWB Work Report` WHERE name IN %(names)s",
+            {"names": wr_names},
         )
+        date_map = {name: ts for name, ts in res}
 
-    if filters.get("workstation"):
-        params["workstation"] = filters.get("workstation")
-        conditions.append("wr.workstation = %(workstation)s")
-
-    return conditions, params
+    for r in rows:
+        ts = date_map.get(r.get("_source_wr"))
+        if ts:
+            dt = get_datetime(ts)
+            r["report_date"] = dt.strftime("%m-%d")
+            r["_sort_ts"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            r["report_date"] = r.get("report_date") or ""
+            r["_sort_ts"] = r.get("_sort_ts") or ""
 
 
 def has_manager_view_access(user=None):
@@ -273,19 +315,6 @@ def has_manager_view_access(user=None):
 
     roles = set(frappe.get_roles(user))
     return bool(roles.intersection(MANAGER_VIEW_ROLES))
-
-
-def get_employee_scope_condition(user=None):
-    user = user or get_current_user()
-    if has_manager_view_access(user):
-        return "", {}
-
-    employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
-    if not employee:
-        frappe.msgprint(_("当前账号未关联员工档案，无法查看个人报表。"))
-        return None
-
-    return "wr.employee = %(scope_employee)s", {"scope_employee": employee}
 
 
 def get_current_user():
