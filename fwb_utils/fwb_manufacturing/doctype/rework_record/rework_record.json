@@ -28,6 +28,8 @@
   "inspector_name_display",
   "inspector",
   "work_order",
+  "custom_work_order_date",
+  "custom_work_report_date",
   "created_at",
   "employee_name_display"
  ],
@@ -129,6 +131,20 @@
    "fieldtype": "Link",
    "label": "\u5de5\u5355\u53f7",
    "options": "Work Order"
+  },
+  {
+   "description": "\u5173\u8054\u5de5\u5355\u7684\u5efa\u7acb\u65e5\u671f\u5feb\u7167\uff0c\u4f9b\u5217\u8868\u6309\u201c\u5de5\u5355\u65e5\u671f\u201d\u8303\u56f4\u7b5b\u9009\uff08\u7531\u7cfb\u7edf\u81ea\u52a8\u5199\u5165\uff09",
+   "fieldname": "custom_work_order_date",
+   "fieldtype": "Date",
+   "label": "\u5de5\u5355\u65e5\u671f",
+   "read_only": 1
+  },
+  {
+   "description": "\u5173\u8054\u62a5\u5de5\u5355\u7684\u62a5\u5de5\u65e5\u671f\u5feb\u7167\uff0c\u4f9b\u5217\u8868\u6309\u201c\u62a5\u5de5\u65e5\u671f\u201d\u8303\u56f4\u7b5b\u9009\uff08\u7531\u7cfb\u7edf\u81ea\u52a8\u5199\u5165\uff09",
+   "fieldname": "custom_work_report_date",
+   "fieldtype": "Date",
+   "label": "\u62a5\u5de5\u65e5\u671f",
+   "read_only": 1
   },
   {
    "fieldname": "created_at",

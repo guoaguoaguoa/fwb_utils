@@ -1,5 +1,10 @@
 // Copyright (c) 2026, WenZhou Furui Handicraft Co.,Ltd. and contributors
 // For license information, please see license.txt
+//
+// 质检返工记录表列表页快捷筛选。三个日期维度不要混：
+// - 开始时间/结束时间：返工单自身 created_at = 质检时间（保存时由 Server Script 写入）
+// - 报工日期：关联报工单的报工时间点（本地快照 custom_work_report_date）
+// - 工单日期：关联工单的建立日期（本地快照 custom_work_order_date）
 
 frappe.listview_settings["Rework Record"] = {
 	onload(listview) {
@@ -8,53 +13,74 @@ frappe.listview_settings["Rework Record"] = {
 		}
 		listview._fwb_rework_quick_filters_setup = true;
 
-		const start_date_field = listview.page.add_field({
+		// 必须把控件放进 .standard-filter-section（原生标准筛选所在的同一个 flex 容器）。
+		// 不传 parent 会落到 page_form，与该 section 成为兄弟节点，把它挤窄导致原生筛选竖排。
+		const filter_wrapper =
+			listview.filter_area.standard_filters_wrapper ||
+			listview.page.page_form.find(".standard-filter-section");
+
+		const add = (df) => listview.page.add_field(df, filter_wrapper);
+
+		const start_date_field = add({
 			label: "开始时间",
 			fieldtype: "Date",
 			fieldname: "fwb_rework_start_date_filter"
 		});
 
-		const end_date_field = listview.page.add_field({
+		const end_date_field = add({
 			label: "结束时间",
 			fieldtype: "Date",
 			fieldname: "fwb_rework_end_date_filter"
 		});
 
-		const employee_name_field = listview.page.add_field({
+		const employee_name_field = add({
 			label: "责任人姓名",
 			fieldtype: "Data",
 			fieldname: "fwb_rework_employee_name_filter"
 		});
 
-		const inspector_name_field = listview.page.add_field({
+		const inspector_name_field = add({
 			label: "质检员姓名",
 			fieldtype: "Data",
 			fieldname: "fwb_rework_inspector_name_filter"
 		});
 
-		const workstation_field = listview.page.add_field({
+		const workstation_field = add({
 			label: "工作站",
 			fieldtype: "Link",
 			options: "Workstation",
 			fieldname: "fwb_rework_workstation_filter"
 		});
 
-		const product_name_field = listview.page.add_field({
+		const product_name_field = add({
 			label: "产品名",
 			fieldtype: "Data",
 			fieldname: "fwb_rework_product_name_filter"
 		});
 
-		const work_report_field = listview.page.add_field({
+		const work_report_field = add({
 			label: "对应的报工号",
 			fieldtype: "Data",
 			fieldname: "fwb_rework_work_report_filter"
 		});
 
-		const work_order_field = listview.page.add_field({
+		const work_order_field = add({
 			label: "生产工单号",
 			fieldtype: "Data",
 			fieldname: "fwb_rework_work_order_filter"
+		});
+
+		// 报工日期 / 工单日期：各用一个 DateRange 控件（一个框选起止），避免「从/至」被换行拆散。
+		const wr_date_field = add({
+			label: "报工日期",
+			fieldtype: "DateRange",
+			fieldname: "fwb_rework_wr_date_range"
+		});
+
+		const wo_date_field = add({
+			label: "工单日期",
+			fieldtype: "DateRange",
+			fieldname: "fwb_rework_wo_date_range"
 		});
 
 		// Detach all quick-filter controls from the standard collector so that they
@@ -67,7 +93,9 @@ frappe.listview_settings["Rework Record"] = {
 			workstation_field,
 			product_name_field,
 			work_report_field,
-			work_order_field
+			work_order_field,
+			wr_date_field,
+			wo_date_field
 		];
 		all_quick_fields.forEach((field) => {
 			field._real_get_value = field.get_value.bind(field);
@@ -85,11 +113,18 @@ frappe.listview_settings["Rework Record"] = {
 			["Rework Record", "workstation"],
 			["Rework Record", "product_name"],
 			["Rework Record", "from_work_report"],
-			["Rework Record", "work_order"]
+			["Rework Record", "work_order"],
+			["Rework Record", "custom_work_order_date"],
+			["Rework Record", "custom_work_report_date"]
 		];
 
 		let setting_filter_values = false;
 		let applying_quick_filters = Promise.resolve();
+
+		const range_of = (field) => {
+			const value = field._real_get_value();
+			return Array.isArray(value) ? value : [];
+		};
 
 		const is_controlled_filter = (filter_value) => {
 			return controlled_filters.some(([doctype, fieldname]) => {
@@ -129,25 +164,17 @@ frappe.listview_settings["Rework Record"] = {
 				const product_name = (product_name_field._real_get_value() || "").trim();
 				const work_report = (work_report_field._real_get_value() || "").trim();
 				const work_order = (work_order_field._real_get_value() || "").trim();
+				const [wr_from, wr_to] = range_of(wr_date_field);
+				const [wo_from, wo_to] = range_of(wo_date_field);
 
 				remove_existing_quick_filters();
 
 				const filters = [];
 				if (start_date) {
-					filters.push([
-						"Rework Record",
-						"created_at",
-						">=",
-						`${start_date} 00:00:00`
-					]);
+					filters.push(["Rework Record", "created_at", ">=", `${start_date} 00:00:00`]);
 				}
 				if (end_date) {
-					filters.push([
-						"Rework Record",
-						"created_at",
-						"<=",
-						`${end_date} 23:59:59`
-					]);
+					filters.push(["Rework Record", "created_at", "<=", `${end_date} 23:59:59`]);
 				}
 				if (employee_name) {
 					filters.push([
@@ -191,6 +218,18 @@ frappe.listview_settings["Rework Record"] = {
 						"like",
 						`%${work_order}%`
 					]);
+				}
+				if (wr_from) {
+					filters.push(["Rework Record", "custom_work_report_date", ">=", wr_from]);
+				}
+				if (wr_to) {
+					filters.push(["Rework Record", "custom_work_report_date", "<=", wr_to]);
+				}
+				if (wo_from) {
+					filters.push(["Rework Record", "custom_work_order_date", ">=", wo_from]);
+				}
+				if (wo_to) {
+					filters.push(["Rework Record", "custom_work_order_date", "<=", wo_to]);
 				}
 
 				return listview.filter_area.add(filters, false).then(() => {
@@ -251,7 +290,25 @@ frappe.listview_settings["Rework Record"] = {
 			return get_month_range(base, month_offset);
 		};
 
-		const clear_date_filter = () => set_date_range("", "");
+		// 清空日期：三个日期维度一起清（质检时间 + 报工日期 + 工单日期）。
+		const clear_date_filter = () => {
+			setting_filter_values = true;
+			return frappe
+				.run_serially([
+					() => start_date_field.set_value(""),
+					() => end_date_field.set_value(""),
+					() => wr_date_field.set_value(""),
+					() => wo_date_field.set_value("")
+				])
+				.then(() => {
+					setting_filter_values = false;
+					return apply_quick_filters();
+				})
+				.catch((error) => {
+					setting_filter_values = false;
+					throw error;
+				});
+		};
 
 		// Refresh on any quick-filter change.
 		all_quick_fields.forEach((field) => {

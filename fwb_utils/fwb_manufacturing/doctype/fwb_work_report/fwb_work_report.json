@@ -11,6 +11,7 @@
   "section_break_nztx",
   "amended_from",
   "work_order",
+  "custom_work_order_date",
   "employee_name_display",
   "product_name",
   "workstation",
@@ -93,8 +94,16 @@
   {
    "fieldname": "work_order",
    "fieldtype": "Link",
+   "in_standard_filter": 1,
    "label": "\u5de5\u5355\u53f7",
    "options": "Work Order"
+  },
+  {
+   "description": "\u5173\u8054\u5de5\u5355\u7684\u5efa\u7acb\u65e5\u671f\u5feb\u7167\uff0c\u4f9b\u5217\u8868\u6309\u201c\u5de5\u5355\u65e5\u671f\u201d\u8303\u56f4\u7b5b\u9009\uff08\u7531\u7cfb\u7edf\u81ea\u52a8\u5199\u5165\uff09",
+   "fieldname": "custom_work_order_date",
+   "fieldtype": "Date",
+   "label": "\u5de5\u5355\u65e5\u671f",
+   "read_only": 1
   },
   {
    "default": "\u5426",
@@ -119,6 +128,7 @@
   {
    "fieldname": "duration_display",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "\u5de5\u65f6",
    "read_only": 1
   },
@@ -172,14 +182,12 @@
    "columns": 1,
    "fieldname": "defect_qty",
    "fieldtype": "Read Only",
-   "in_list_view": 1,
    "label": "\u8d28\u68c0\u6263\u9664\u6570\u91cf"
   },
   {
    "columns": 1,
    "fieldname": "recovered_qty",
    "fieldtype": "Read Only",
-   "in_list_view": 1,
    "label": "\u8fd4\u5de5\u56de\u8865\u6570\u91cf"
   },
   {
@@ -216,7 +224,7 @@
  "is_submittable": 1,
  "links": [],
  "make_attachments_public": 1,
- "modified": "2026-04-20 23:34:02.472372",
+ "modified": "2026-09-16 10:54:28.345127",
  "modified_by": "Administrator",
  "module": "Fwb Manufacturing",
  "name": "FWB Work Report",

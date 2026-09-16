@@ -18,6 +18,17 @@ doc_events = {
         "on_submit": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_submit",
         "on_cancel": "fwb_utils.fwb_manufacturing.doctype.material_readiness_check.material_readiness_check.work_order_on_cancel",
     },
+    # 工单日期快照：把关联工单的建立日期(creation) 写入本地 custom_work_order_date，供列表按范围筛选
+    "FWB Work Report": {
+        "validate": "fwb_utils.fwb_manufacturing.work_order_snapshot.set_work_order_date_snapshot",
+    },
+    "Rework Record": {
+        "validate": [
+            "fwb_utils.fwb_manufacturing.work_order_snapshot.set_work_order_date_snapshot",
+            # 报工日期快照：关联报工单 created_at 的日期（返工单自身 created_at 是质检时间，不是报工日期）
+            "fwb_utils.fwb_manufacturing.work_order_snapshot.set_work_report_date_snapshot",
+        ],
+    },
     # 计件工资单删除/取消时，自动解除并复位关联的 Employee Wage Sheet（清空 salary_slip + 状态复位为「已确认」）
     "Salary Slip": {
         "before_validate": "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",

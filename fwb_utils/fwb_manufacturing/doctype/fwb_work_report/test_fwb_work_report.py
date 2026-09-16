@@ -147,6 +147,18 @@ class TestFWBWorkReport(FrappeTestCase):
 			self.assertEqual(setter["property"], "allow_on_submit")
 			self.assertEqual(setter["value"], "1")
 
+	def test_list_view_standard_filters_include_work_order(self):
+		"""生产报工表列表页(app/fwb-work-report/view/list)快捷筛选：工单号必须可搜。"""
+		doctype_json = Path(__file__).with_name("fwb_work_report.json")
+		meta = json.loads(doctype_json.read_text(encoding="utf-8"))
+		standard_filters = {
+			f["fieldname"] for f in meta["fields"] if f.get("in_standard_filter")
+		}
+		self.assertIn("work_order", standard_filters)
+		# 既有快捷筛选不得因此丢失
+		self.assertIn("employee_name_display", standard_filters)
+		self.assertIn("workstation", standard_filters)
+
 	def _sql_effective_qty(self, work_report_name):
 		rows = frappe.db.sql(
 			f"""

@@ -69,7 +69,7 @@
   "docstatus": 0,
   "doctype": "Client Script",
   "dt": "FWB Work Report",
-  "enabled": 1,
+  "enabled": 0,
   "modified": "2025-12-11 11:24:03.831975",
   "module": "Fwb Manufacturing",
   "name": "FWB Work Report Date",
