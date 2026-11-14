@@ -31,6 +31,9 @@ doc_events = {
     },
     # 计件工资单删除/取消时，自动解除并复位关联的 Employee Wage Sheet（清空 salary_slip + 状态复位为「已确认」）
     "Salary Slip": {
+        "before_insert": "fwb_utils.fwb_manufacturing.recovery_settlement.clear_new_salary_confirmation",
+        "before_submit": "fwb_utils.fwb_manufacturing.recovery_settlement.stamp_salary_confirmation",
+        "before_cancel": "fwb_utils.fwb_manufacturing.recovery_settlement.protect_original_salary_cancellation",
         "before_validate": "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",
         "validate": [
             "fwb_utils.fwb_manufacturing.salary_slip_attendance.sync_regular_worker_payment_days",

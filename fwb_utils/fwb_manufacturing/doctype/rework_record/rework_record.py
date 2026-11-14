@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, now_datetime
 
 from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import (
 	apply_quality_totals_to_work_report,
@@ -13,11 +13,59 @@ from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import 
 
 
 class ReworkRecord(Document):
+	def before_insert(self):
+		if self.meta.has_field("confirmed_at"):
+			self.confirmed_at = None
+
+	def validate(self):
+		if self.rework_action == "良品回补":
+			self.quality_inspected = 0
+			self.defective_qty = 0
+		elif self.rework_action == "次品扣除":
+			self.reworked_qty = 0
+		if flt(self.defective_qty) < 0 or flt(self.reworked_qty) < 0 or flt(self.quality_inspected) < 0:
+			frappe.throw("质检、扣除和回补数量不能为负数。")
+
+	def before_submit(self):
+		_check_quantity_limit(self)
+		if self.meta.has_field("confirmed_at"):
+			self.confirmed_at = now_datetime()
+
+	def before_cancel(self):
+		_check_quantity_limit(self, cancelling=True)
+
 	def apply_submitted_rework_record(self):
 		apply_submitted_rework_record(self)
 
 	def rollback_cancelled_rework_record(self):
 		rollback_cancelled_rework_record(self)
+
+
+def _check_quantity_limit(doc, cancelling=False):
+	if not doc.from_work_report:
+		return
+	from fwb_utils.fwb_manufacturing.recovery_settlement import check_recovery_limit
+	# 同一张原报工串行校验，避免两个提交都读到同一份剩余额度。
+	frappe.db.sql("select name from `tabFWB Work Report` where name=%s for update", doc.from_work_report)
+	totals = frappe.db.sql("""select
+		coalesce(sum(case when rework_action='次品扣除' then defective_qty else 0 end),0) as deducted,
+		coalesce(sum(case when rework_action='良品回补' then reworked_qty else 0 end),0) as recovered
+		from `tabRework Record` where from_work_report=%s and docstatus=1 and name!=%s
+	""", (doc.from_work_report,doc.name or ''), as_dict=True)[0]
+	if cancelling:
+		from fwb_utils.fwb_manufacturing.recovery_settlement import schema_ready
+		if doc.rework_action == "良品回补" and schema_ready():
+			used = frappe.db.sql("""select s.name from `tabSalary Slip` s
+				join `tabEmployee Wage Sheet Detail` d on d.parent=s.name
+				where s.docstatus=1 and d.parenttype='Salary Slip' and d.source_rework_record=%s limit 1""",doc.name)
+			if used:
+				frappe.throw(f"回补已计入核定工资单 {used[0][0]}，不能直接取消；请先处理对应工资单。")
+		if doc.rework_action == "次品扣除" and totals.recovered > totals.deducted:
+			frappe.throw("取消此扣除会使已回补数量超过剩余扣除数量，请先取消相应回补记录。")
+	elif doc.rework_action == "良品回补":
+		if flt(doc.reworked_qty) <= 0:
+			frappe.throw("本次回补数量必须大于0。")
+		check_recovery_limit(totals.deducted,totals.recovered,doc.reworked_qty)
 
 
 def _get_rework_doc(doc_or_name):
@@ -52,7 +100,7 @@ def _sync_total_quality_inspected(from_work_report, excluded_name=None):
 	total_quality_inspected = (
 		frappe.db.sql(
 			f"""
-			SELECT SUM(IFNULL(quality_inspected, 0))
+				SELECT SUM(CASE WHEN rework_action='良品回补' THEN 0 ELSE IFNULL(quality_inspected, 0) END)
 			FROM `tabRework Record`
 			WHERE from_work_report = %s
 			  AND docstatus = 1

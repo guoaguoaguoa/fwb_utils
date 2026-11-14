@@ -20,6 +20,8 @@ from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import 
 )
 
 DETAIL_FIELDS_TO_COPY = (
+    "source_rework_record",
+    "settlement_date",
     "source_work_report",
     "work_order",
     "product_name",
@@ -250,6 +252,7 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
             AND DATE(w.created_at) <= %(to_date)s
             AND (
                 {eff_sql} > 0
+                OR ({eff_sql} = 0 AND IFNULL(w.defect_qty,0)>0 AND IFNULL(w.wage_type,'计件')!='计时')
                 OR (w.wage_type = '计时' AND IFNULL(w.duration, 0) > 0)
             )
         ORDER BY w.created_at, w.name
@@ -262,9 +265,6 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
     }
 
     records = frappe.db.sql(sql, params, as_dict=True)
-
-    if not records:
-        return []
 
     result = []
 
@@ -373,7 +373,8 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
     # frappe.msgprint(f"Debug: Found {len(penalty_rows)} penalty rows between {from_date} and {to_date}")
     result.extend(penalty_rows)
 
-    return result
+    from fwb_utils.fwb_manufacturing.recovery_settlement import apply_recovery_settlement
+    return apply_recovery_settlement(result, employee, from_date, to_date)
 
 
 def _collect_penalty_rows(employee, from_date, to_date):

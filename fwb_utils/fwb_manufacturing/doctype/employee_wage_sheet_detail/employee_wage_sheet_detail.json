@@ -8,6 +8,8 @@
     "field_order": [
         "section_break_f3cp",
         "source_work_report",
+        "source_rework_record",
+        "settlement_date",
         "work_order",
         "product_name",
         "size_l",
@@ -24,6 +26,19 @@
         "duration_seconds"
     ],
     "fields": [
+        {
+            "fieldname": "source_rework_record",
+            "fieldtype": "Link",
+            "label": "回补单号",
+            "options": "Rework Record",
+            "read_only": 1
+        },
+        {
+            "fieldname": "settlement_date",
+            "fieldtype": "Date",
+            "label": "回补结算日期",
+            "read_only": 1
+        },
         {
             "fieldname": "section_break_f3cp",
             "fieldtype": "Section Break"

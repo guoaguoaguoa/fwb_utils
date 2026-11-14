@@ -27,7 +27,7 @@
   "enable_stock_reservation": 0,
   "item_group": null,
   "item_naming_by": "Naming Series",
-  "modified": "2026-09-16 10:14:39.141020",
+  "modified": "2026-11-14 22:43:45.932353",
   "mr_qty_allowance": 0.0,
   "name": "Stock Settings",
   "naming_series_prefix": "BATCH-",

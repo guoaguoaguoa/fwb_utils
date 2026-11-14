@@ -49,6 +49,8 @@ def generate_piece_wage_details_for_salary_slip(salary_slip: str) -> dict:
 
 	doc.flags.fwb_sync_piece_wage = True
 	totals = _sync_piece_wage_summary_and_component(doc)
+	from fwb_utils.fwb_manufacturing.recovery_settlement import mark_salary_details_generated
+	mark_salary_details_generated(doc)
 	doc.save(ignore_permissions=True)
 
 	return {
@@ -133,6 +135,8 @@ def _get_preserved_manual_rows(doc) -> list[dict]:
 
 def _append_aggregated_row(doc, row):
 	child = doc.append(PIECE_WAGE_DETAIL_FIELD, {})
+	child.source_rework_record = row.get("source_rework_record")
+	child.settlement_date = row.get("settlement_date")
 	child.source_work_report = row.get("work_report")
 	child.work_order = row.get("work_order")
 	child.product_name = row.get("product_name")

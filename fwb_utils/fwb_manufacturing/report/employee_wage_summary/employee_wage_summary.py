@@ -85,10 +85,28 @@ def get_columns():
             "width": 100,
         },
         {
-            "label": "有效数量",
+            "label": "生产有效数量",
             "fieldname": "valid_qty",
             "fieldtype": "Int",
             "width": 60,
+        },
+        {
+            "label": "本期计薪数量",
+            "fieldname": "settlement_qty",
+            "fieldtype": "Float",
+            "width": 110,
+        },
+        {
+            "label": "结算方式",
+            "fieldname": "settlement_type",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+        {
+            "label": "备注",
+            "fieldname": "remarks",
+            "fieldtype": "Small Text",
+            "width": 180,
         },
         {
             "label": "有效工时",
@@ -148,6 +166,8 @@ def get_data(filters):
         - to_date (Date)
         - product_name (Data)
     """
+    if filters.get("from_date") and filters.get("to_date"):
+        return _settlement_data(filters)
     rows = get_work_reports(filters)
     if not rows:
         return []
@@ -163,10 +183,10 @@ def get_data(filters):
         # same logic as client for amount / piece_rate
         amount, piece_rate, hourly_rate = compute_amount_and_piece_rate(wr)
 
-        # defect rate = defect_qty / (valid_qty + defect_qty)
+        # 已发生次品 / 原报工数量，与员工次品率、工厂总览一致；回补不放大分母。
         defect_qty = flt(wr.defect_qty or 0)
         valid_qty = flt(wr.valid_qty or 0)
-        defect_denominator = valid_qty + defect_qty
+        defect_denominator = flt(wr.qty or 0)
         defect_rate = 0.0
         if defect_denominator > 0:
             defect_rate = (defect_qty / defect_denominator) * 100.0
@@ -227,6 +247,49 @@ def get_data(filters):
         data.append(total_row)
 
     return data
+
+
+def _settlement_data(filters):
+    """有日期范围的薪资核对复用“我的报工记录”同一工资快照/预览，产量单列。"""
+    from fwb_utils.fwb_manufacturing.report.work_report_log.work_report_log import get_data as settlement_data
+    financial = settlement_data(filters)
+    names = list({r.report_num for r in financial if r.report_num})
+    production = {}
+    employee_names = {r.name:r.employee_name for r in frappe.get_all("Employee",
+        filters={"name":["in",list({r.get('_employee') for r in financial if r.get('_employee')}) or ['_none']]},
+        fields=["name","employee_name"])}
+    if names:
+        eff = effective_qty_sql("w")
+        production = {r.name:r for r in frappe.db.sql(f"""select w.name,w.employee,
+            w.employee_name_display,w.created_at,w.qty,w.defect_qty,{eff} as valid_qty
+            from `tabFWB Work Report` w where w.name in %s""",(tuple(names),),as_dict=True)}
+    seen = set()
+    result = []
+    for r in financial:
+        p = production.get(r.report_num, frappe._dict())
+        physical = 0
+        defect = 0
+        if r.report_num and r.report_num not in seen and not r.source_rework_record and not r.get("_is_penalty"):
+            physical,defect = flt(p.get("valid_qty")),flt(p.get("defect_qty"))
+            seen.add(r.report_num)
+        result.append(frappe._dict(
+            wr_name=r.report_num,posting_date=r.get("_settlement_date") or p.get("created_at"),
+            employee=p.get("employee") or r.get("_employee") or filters.get("employee"),
+            employee_name=p.get("employee_name_display") or employee_names.get(r.get("_employee"),"手工调整"),
+            product_name=r.product_name,workstation=r.workstation,work_order=r.work_order,
+            valid_qty=physical,settlement_qty=r.produce_qty,defect_qty=defect,
+            defect_rate=defect/flt(p.get("qty"))*100 if defect and flt(p.get("qty")) else 0,
+            duration=r.get("_duration_seconds",0),piece_rate=r.piece_rate,
+            hourly_rate=r.piece_rate if r.get("_duration_seconds") else 0,amount=r.amount,
+            **{key:r.get(key) for key in ("size_l","size_w","size_h")},
+            remarks=r.remarks,settlement_type=r.wage_type,
+        ))
+    if result:
+        total=frappe._dict(employee_name="合计",is_total_row=1)
+        for key in ["valid_qty","settlement_qty","defect_qty","duration","amount"]:
+            total[key]=sum(flt(r.get(key)) for r in result)
+        result.append(total)
+    return result
 
 
 def get_work_reports(filters):

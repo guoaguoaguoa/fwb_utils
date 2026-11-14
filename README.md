@@ -4,6 +4,9 @@ ERPNext/Frappe manufacturing extension for FWB workshop reporting, QC/rework
 feedback, material readiness checks, piece/time wage settlement, and related
 manufacturing reports.
 
+计件工资单可通过「从报工生成明细」自动带出核定后的跨期回补，沿用原核定单价。
+历史无核定时间记录不自动补发；数量上限与生产、工资报表口径见设计文档 §7.5.2。
+
 The canonical business logic notes live in:
 
 - `../../docs/fwb_utils设计逻辑分析.md`

@@ -19,3 +19,4 @@ fwb_utils.patches.v15_0.payroll_attendance_hour_based_leave_names
 fwb_utils.patches.v15_0.payroll_attendance_iso_week_rest
 fwb_utils.patches.v15_0.backfill_work_order_date_snapshot
 fwb_utils.patches.v15_0.backfill_rework_report_date_snapshot
+fwb_utils.patches.v15_0.recovery_settlement_fields

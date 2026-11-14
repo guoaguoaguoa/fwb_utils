@@ -50,7 +50,7 @@ class TestFactoryControlTower(FrappeTestCase):
 	def test_kpi_work_report_queries_only_use_submitted_normal_reports(self):
 		captured_sql = []
 
-		def fake_sql(sql, params=None, as_dict=False):
+		def fake_sql(sql, params=None, as_dict=False, **kwargs):
 			captured_sql.append(sql)
 			normalized = " ".join(sql.split()).lower()
 			if "from `tabwork order`" in normalized:
@@ -72,7 +72,8 @@ class TestFactoryControlTower(FrappeTestCase):
 				)
 			]
 
-		with patch.object(factory_control_towe.frappe.db, "sql", side_effect=fake_sql):
+		with (patch.object(factory_control_towe.frappe.db, "sql", side_effect=fake_sql),
+		      patch("fwb_utils.fwb_manufacturing.report.work_report_log.work_report_log.get_data",return_value=[])):
 			factory_control_towe._get_kpi_block("2026-04-01", "2026-04-30")
 
 		work_report_sql = " ".join(
@@ -88,8 +89,9 @@ class TestFactoryControlTower(FrappeTestCase):
 	def test_kpi_applies_product_and_sample_filters_to_work_order_and_reports(self):
 		captured = []
 
-		def fake_sql(sql, params=None, as_dict=False):
+		def fake_sql(sql, params=None, as_dict=False, **kwargs):
 			captured.append((sql, params or {}))
+			if kwargs.get("pluck"): return []
 			normalized = " ".join(sql.split()).lower()
 			if "from `tabwork order`" in normalized:
 				return [
@@ -111,7 +113,8 @@ class TestFactoryControlTower(FrappeTestCase):
 			]
 
 		filters = factory_control_towe._get_dashboard_filters("木盒", 10)
-		with patch.object(factory_control_towe.frappe.db, "sql", side_effect=fake_sql):
+		with (patch.object(factory_control_towe.frappe.db, "sql", side_effect=fake_sql),
+		      patch("fwb_utils.fwb_manufacturing.report.work_report_log.work_report_log.get_data",return_value=[])):
 			factory_control_towe._get_kpi_block("2026-04-01", "2026-04-30", filters)
 
 		normalized_sql = " ".join(" ".join(sql for sql, _ in captured).split()).lower()

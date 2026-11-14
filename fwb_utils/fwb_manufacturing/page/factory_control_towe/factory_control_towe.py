@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe.utils import nowdate, now_datetime, flt, cint, add_days, getdate, get_datetime
+from fwb_utils.fwb_manufacturing.doctype.fwb_work_report.fwb_work_report import effective_qty_sql
 
 
 WORKSTATION_FLOW = (
@@ -107,9 +108,9 @@ def _get_kpi_block(from_date, to_date, dashboard_filters=None):
     - work_order_unfinished: total - completed
     - pending_box_qty: 区间内所有未完成工单的 qty 总和
     - completed_box_qty: 区间内所有已完成工单的 qty 总和
-    - range_output_qty: 区间内 FWB Work Report.valid_qty 之和
+    - range_output_qty: 区间内原报工的统一 effective_qty_sql 之和
     - range_defect_rate: 区间内 SUM(defect_qty) / SUM(qty)
-    - range_wage_amount: 区间内 FWB Work Report.total_amount 之和
+    - range_wage_amount: 区间内工资结算快照/预览之和，含核定后跨期回补
     """
 
     wo_filter_sql, wo_filter_params = _get_work_order_filter_sql(dashboard_filters, "wo")
@@ -161,7 +162,7 @@ def _get_kpi_block(from_date, to_date, dashboard_filters=None):
     prod_rows = frappe.db.sql(
         """
         SELECT
-            SUM(IFNULL(w.valid_qty, 0))   AS total_valid_qty,
+            SUM({effective_qty})   AS total_valid_qty,
             SUM(IFNULL(w.qty, 0))         AS total_qty,
             SUM(IFNULL(w.defect_qty, 0))  AS total_defect_qty
         FROM `tabFWB Work Report` w
@@ -175,6 +176,7 @@ def _get_kpi_block(from_date, to_date, dashboard_filters=None):
             {wo_filter_sql}
         """.format(
             normal_condition=_normal_work_report_condition("w"),
+            effective_qty=effective_qty_sql("w"),
             wo_filter_sql=wo_filter_sql,
         ),
         dict(_get_work_report_params(from_date, to_date), **wo_filter_params),
@@ -195,29 +197,14 @@ def _get_kpi_block(from_date, to_date, dashboard_filters=None):
     else:
         defect_rate = 0.0
 
-    # 工资合计：直接统计 FWB Work Report.total_amount（计件 + 计时）
-    wage_rows = frappe.db.sql(
-        """
-        SELECT
-            SUM(IFNULL(w.total_amount, 0)) AS total_amount
-        FROM `tabFWB Work Report` w
-        INNER JOIN `tabWork Order` wo
-            ON w.work_order = wo.name
-        WHERE
-            w.docstatus = 1
-            AND {normal_condition}
-            AND w.created_at >= %(from_datetime)s
-            AND w.created_at <= %(to_datetime)s
-            {wo_filter_sql}
-        """.format(
-            normal_condition=_normal_work_report_condition("w"),
-            wo_filter_sql=wo_filter_sql,
-        ),
-        dict(_get_work_report_params(from_date, to_date), **wo_filter_params),
-        as_dict=True,
-    )
-
-    wage_total = flt(wage_rows[0].total_amount or 0) if wage_rows else 0.0
+    # 金额按工资结算期间，数量仍按原报工生产事实；补发不是新产量。
+    from fwb_utils.fwb_manufacturing.report.work_report_log.work_report_log import get_data as wage_data
+    wage_rows = wage_data({"from_date":from_date,"to_date":to_date})
+    allowed_orders = None
+    if wo_filter_sql:
+        allowed_orders = set(frappe.db.sql("select wo.name from `tabWork Order` wo where 1=1 " + wo_filter_sql,
+            wo_filter_params,pluck=True))
+    wage_total = sum(flt(r.amount) for r in wage_rows if allowed_orders is None or r.work_order in allowed_orders)
 
     return {
         "work_order_total": total_wo,
@@ -417,7 +404,7 @@ def _get_workstation_progress(from_date, to_date, dashboard_filters=None):
             w.work_order,
             w.workstation,
             SUM(IFNULL(w.qty, 0))        AS total_qty,
-            SUM(IFNULL(w.valid_qty, 0))  AS total_valid_qty,
+            SUM({effective_qty})  AS total_valid_qty,
             SUM(IFNULL(w.defect_qty, 0)) AS total_defect_qty
         FROM `tabFWB Work Report` w
         INNER JOIN `tabWork Order` wo_filter
@@ -432,6 +419,7 @@ def _get_workstation_progress(from_date, to_date, dashboard_filters=None):
             w.work_order, w.workstation
         """.format(
             normal_condition=_normal_work_report_condition("w"),
+            effective_qty=effective_qty_sql("w"),
             wo_filter_sql=wo_filter_sql,
         ),
         dict(params, **wo_filter_params),
@@ -447,7 +435,7 @@ def _get_workstation_progress(from_date, to_date, dashboard_filters=None):
         SELECT
             w_cumulative.work_order,
             w_cumulative.workstation,
-            SUM(IFNULL(w_cumulative.valid_qty, 0)) AS cumulative_valid_qty
+            SUM({effective_cumulative_qty}) AS cumulative_valid_qty
         FROM `tabFWB Work Report` w_cumulative
         WHERE
             w_cumulative.docstatus = 1
@@ -456,7 +444,7 @@ def _get_workstation_progress(from_date, to_date, dashboard_filters=None):
             AND w_cumulative.work_order IN %(work_orders)s
         GROUP BY
             w_cumulative.work_order, w_cumulative.workstation
-        """.format(normal_condition=_normal_work_report_condition("w_cumulative")),
+        """.format(normal_condition=_normal_work_report_condition("w_cumulative"), effective_cumulative_qty=effective_qty_sql("w_cumulative")),
         dict(params, work_orders=tuple(work_orders)),
         as_dict=True,
     )
@@ -562,6 +550,7 @@ def _get_stage_overview(from_date, to_date, dashboard_filters=None):
             {wo_filter_sql}
         """.format(
             normal_condition=_normal_work_report_condition("w"),
+            effective_qty=effective_qty_sql("w"),
             wo_filter_sql=wo_filter_sql,
         ),
         dict(params, **wo_filter_params),
@@ -576,7 +565,7 @@ def _get_stage_overview(from_date, to_date, dashboard_filters=None):
         SELECT
             w.work_order,
             w.workstation,
-            SUM(IFNULL(w.valid_qty, 0)) AS total_valid_qty,
+            SUM({effective_qty}) AS total_valid_qty,
             MIN(w.created_at) AS first_created_at,
             MAX(w.created_at) AS last_created_at
         FROM `tabFWB Work Report` w
@@ -587,7 +576,7 @@ def _get_stage_overview(from_date, to_date, dashboard_filters=None):
             AND w.work_order IN %(work_orders)s
         GROUP BY
             w.work_order, w.workstation
-        """.format(normal_condition=_normal_work_report_condition("w")),
+        """.format(normal_condition=_normal_work_report_condition("w"), effective_qty=effective_qty_sql("w")),
         dict(params, work_orders=tuple(work_order_names)),
         as_dict=True,
     )

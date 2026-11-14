@@ -31,9 +31,17 @@
   "custom_work_order_date",
   "custom_work_report_date",
   "created_at",
+  "confirmed_at",
   "employee_name_display"
  ],
  "fields": [
+  {
+   "fieldname": "confirmed_at",
+   "fieldtype": "Datetime",
+   "label": "质检确认时间",
+   "read_only": 1,
+   "no_copy": 1
+  },
   {
    "fieldname": "section_break_rcfe",
    "fieldtype": "Section Break"

@@ -105,7 +105,10 @@ def get_data(filters):
 
     rows = []
     for employee in employees:
-        rows.extend(_build_employee_rows(employee, from_date, to_date))
+        employee_rows = _build_employee_rows(employee, from_date, to_date)
+        for r in employee_rows:
+            r["_employee"] = employee
+        rows.extend(employee_rows)
 
     rows = _apply_row_filters(rows, filters)
     _fill_report_dates(rows)
@@ -143,6 +146,8 @@ def _find_exact_period_piece_wage_slip(employee, from_date, to_date):
 
 def _read_slip_detail_rows(slip_name):
     """读工资单计件明细子表（含手工扣款/补贴行、罚款行）。"""
+    from fwb_utils.fwb_manufacturing.recovery_settlement import schema_ready
+    extra_fields = ["source_rework_record", "settlement_date"] if schema_ready() else []
     return frappe.get_all(
         "Employee Wage Sheet Detail",
         filters={
@@ -154,7 +159,8 @@ def _read_slip_detail_rows(slip_name):
             "source_work_report", "work_order", "product_name", "workstation",
             "qty", "rate", "duration_seconds", "duration_display",
             "amount", "is_penalty", "remarks",
-        ],
+            "size_l", "size_w", "size_h",
+        ] + extra_fields,
         order_by="idx asc",
     )
 
@@ -167,7 +173,7 @@ def _normalize_slip_row(raw):
     return frappe._dict({
         "report_date": "",  # 稍后按报工单 created_at 回填
         "product_name": raw.get("product_name") or "",
-        "wage_type": _wage_type_label(is_penalty, source_wr, duration),
+        "wage_type": "往期回补" if raw.get("source_rework_record") else _wage_type_label(is_penalty, source_wr, duration),
         "remarks": raw.get("remarks") or "",
         "produce_qty": flt(raw.get("qty")),
         "piece_rate": flt(raw.get("rate")),
@@ -178,6 +184,11 @@ def _normalize_slip_row(raw):
         "workstation": raw.get("workstation") or "",
         "_style": _row_style(is_penalty, amount, duration),
         "_source_wr": source_wr,
+        "_settlement_date": raw.get("settlement_date"),
+        "source_rework_record": raw.get("source_rework_record"),
+        "_duration_seconds": duration,
+        "_is_penalty": is_penalty,
+        **{key:raw.get(key) for key in ("size_l","size_w","size_h")},
     })
 
 
@@ -191,7 +202,7 @@ def _normalize_preview_row(raw):
     return frappe._dict({
         "report_date": "",
         "product_name": raw.get("product_name") or "",
-        "wage_type": _wage_type_label(is_penalty, source_wr, duration),
+        "wage_type": "往期回补" if raw.get("source_rework_record") else _wage_type_label(is_penalty, source_wr, duration),
         "remarks": raw.get("remarks") or "",
         "produce_qty": qty,
         "piece_rate": rate,
@@ -202,6 +213,11 @@ def _normalize_preview_row(raw):
         "workstation": raw.get("workstation") or "",
         "_style": _row_style(is_penalty, amount, duration),
         "_source_wr": source_wr,
+        "_settlement_date": raw.get("settlement_date"),
+        "source_rework_record": raw.get("source_rework_record"),
+        "_duration_seconds": duration,
+        "_is_penalty": is_penalty,
+        **{key:raw.get(key) for key in ("size_l","size_w","size_h")},
     })
 
 
@@ -283,7 +299,19 @@ def _resolve_target_employees(filters, from_date, to_date):
         FROM `tabFWB Work Report` wr
         WHERE {" AND ".join(where)}
     """
-    return [row[0] for row in frappe.db.sql(sql, params)]
+    employees = {row[0] for row in frappe.db.sql(sql, params)}
+    from fwb_utils.fwb_manufacturing.recovery_settlement import recovery_employee_ids
+    extra = set(recovery_employee_ids(from_date, to_date))
+    extra.update(frappe.get_all("Salary Slip", filters={
+        "start_date":from_date,"end_date":to_date,"docstatus":["<",2],
+        "salary_structure":PIECE_WAGE_STRUCTURE}, pluck="employee"))
+    if keyword and extra:
+        extra = {r.name for r in frappe.get_all("Employee", filters={"name":["in",list(extra)]}, fields=["name","employee_name"])
+                 if keyword in r.name or keyword in (r.employee_name or "")}
+    employees.update(extra)
+    if filters.get("employee"):
+        employees.intersection_update({filters.employee})
+    return sorted(employees)
 
 
 def _fill_report_dates(rows):
@@ -298,7 +326,7 @@ def _fill_report_dates(rows):
         date_map = {name: ts for name, ts in res}
 
     for r in rows:
-        ts = date_map.get(r.get("_source_wr"))
+        ts = r.get("_settlement_date") or date_map.get(r.get("_source_wr"))
         if ts:
             dt = get_datetime(ts)
             r["report_date"] = dt.strftime("%m-%d")

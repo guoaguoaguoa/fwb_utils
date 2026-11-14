@@ -161,6 +161,7 @@ class TestReworkRecord(FrappeTestCase):
 			qty=100,
 			custom_piece_rate=3,
 			rework_type="有偿返工",
+			remark="质检后安排有偿返工，核对返工单价",
 			rework_rate=0.8,
 		)
 		record = make_rework_record(
