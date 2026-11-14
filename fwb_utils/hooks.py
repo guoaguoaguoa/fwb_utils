@@ -33,6 +33,7 @@ doc_events = {
     "Salary Slip": {
         "before_validate": "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",
         "validate": [
+            "fwb_utils.fwb_manufacturing.salary_slip_attendance.sync_regular_worker_payment_days",
             "fwb_utils.fwb_manufacturing.salary_slip_piece_wage.sync_salary_slip_piece_wage_if_present",
             # 末位：用净支付中文大写覆写英文 total_in_words（ERPNext money_in_words 不支持中文）
             "fwb_utils.fwb_manufacturing.rmb_capital.set_rmb_total_in_words",

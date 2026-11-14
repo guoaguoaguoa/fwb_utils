@@ -146,8 +146,7 @@ def _append_aggregated_row(doc, row):
 	child.duration_seconds = row.get("total_duration_seconds")
 	child.duration_display = _format_duration_display(row.get("total_duration_seconds"))
 	child.is_penalty = row.get("is_penalty", 0)
-	# 罚款行：把返工单「次品情况描述」抓进明细备注，方便在工资单直接看扣除原因。
-	# 普通计件/计时行不带 remarks，保持为空。
+	# 罚款行带质检原因；有偿返工报工行带报工备注，方便工资核算时查看原因。
 	child.remarks = row.get("remarks")
 	child.rate = row.get("rate") or 0
 	child.amount = _calculate_row_amount(child)

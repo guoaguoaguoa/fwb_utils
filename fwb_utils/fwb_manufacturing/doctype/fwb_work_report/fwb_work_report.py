@@ -12,7 +12,12 @@ PRODUCTION_WORKSTATIONS = ("木工房", "裱纸区", "贴皮区", "底漆房", "
 
 
 class FWBWorkReport(Document):
-    pass
+    def validate(self):
+        if self.rework_type == "有偿返工" and not (self.remark or "").strip():
+            frappe.throw(
+                "选择有偿返工时，必须填写备注说明，写明返工原因，便于管理者核算工资。",
+                title="请填写有偿返工备注",
+            )
 
 
 @frappe.whitelist()

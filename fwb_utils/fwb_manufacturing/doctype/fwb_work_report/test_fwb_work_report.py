@@ -323,6 +323,7 @@ class TestFWBWorkReport(FrappeTestCase):
 		self._make_submitted_report(
 			employee.name, ws.name, wo,
 			qty=50, rework_type="有偿返工", rework_rate=1, custom_piece_rate=0,
+			remark="足量提醒应排除有偿返工",
 		)
 		# 不计入：他工位 抛光区 90
 		self._make_submitted_report(employee.name, other_ws.name, wo, qty=90)

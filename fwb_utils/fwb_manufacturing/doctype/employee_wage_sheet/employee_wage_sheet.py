@@ -240,7 +240,8 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
             w.hourly_rate,
             w.custom_piece_rate,
             w.rework_type,
-            w.rework_rate
+            w.rework_rate,
+            w.remark
         FROM `tabFWB Work Report` w
         WHERE
             w.docstatus = 1
@@ -362,6 +363,7 @@ def _collect_aggregated_rows(employee: str, from_date: str, to_date: str):
                     "defect_rate": defect_rate,
                     "total_duration_seconds": total_duration,
                     "rate": flt(rate or 0),
+                    "remarks": row.get("remark") if row.rework_type == "有偿返工" else None,
                 }
             )
         )
